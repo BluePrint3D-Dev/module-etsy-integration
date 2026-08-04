@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * BluePrint3D Ltd
+ *
+ * @category  BluePrint3D
+ * @package   BluePrint3D_EtsyIntegration
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
+    <module name="BluePrint3D_EtsyIntegration">
+        <sequence>
+            <module name="Magento_Catalog"/>
+            <module name="Magento_Backend"/>
+        </sequence>
+    </module>
+</config>

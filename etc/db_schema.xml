@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+
+    <!-- Table: Tracks which Magento products are on Etsy -->
+    <table name="blueprint3d_etsy_listing" resource="default" engine="innodb" comment="Etsy Synced Listings">
+        <column xsi:type="int" name="entity_id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity ID"/>
+        <column xsi:type="int" name="product_id" padding="10" unsigned="true" nullable="false" comment="Magento Product ID"/>
+        <column xsi:type="bigint" name="etsy_listing_id" padding="20" unsigned="true" nullable="true" comment="Etsy Listing ID"/>
+        <column xsi:type="varchar" name="sync_status" length="32" nullable="false" default="pending" comment="Sync Status"/>
+        <column xsi:type="timestamp" name="updated_at" on_update="true" nullable="false" default="CURRENT_TIMESTAMP" comment="Last Sync Time"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="BLUEPRINT3D_ETSY_LISTING_PRODUCT_ID">
+            <column name="product_id"/>
+        </constraint>
+    </table>
+
+    <!-- Table: Maps Magento Categories to Etsy Categories -->
+    <table name="blueprint3d_etsy_category_map" resource="default" engine="innodb" comment="Etsy Category Mapping">
+        <column xsi:type="int" name="entity_id" padding="10" unsigned="true" nullable="false" identity="true" comment="Entity ID"/>
+        <column xsi:type="int" name="magento_category_id" padding="10" unsigned="true" nullable="false" comment="Magento Category ID"/>
+        <column xsi:type="bigint" name="etsy_category_id" padding="20" unsigned="true" nullable="false" comment="Etsy Category ID"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="entity_id"/>
+        </constraint>
+        <constraint xsi:type="unique" referenceId="BLUEPRINT3D_ETSY_CAT_MAP_MAGENTO_CAT_ID">
+            <column name="magento_category_id"/>
+        </constraint>
+    </table>
+
+</schema>
