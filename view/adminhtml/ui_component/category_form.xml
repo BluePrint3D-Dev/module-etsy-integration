@@ -4,7 +4,7 @@
     <fieldset name="etsy_integration" sortOrder="100">
         <settings>
             <collapsible>true</collapsible>
-            <label translate="true">Etsy Integration</label>
+            <label translate="true">BluePrint3D Etsy Integration</label>
         </settings>
 
         <!-- This injects our database attribute into the tab -->
