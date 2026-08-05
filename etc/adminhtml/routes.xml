@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:App/etc/routes.xsd">
+    <router id="admin">
+        <route id="blueprint3d_etsy" frontName="blueprint3d_etsy">
+            <!-- Added the before attribute here: -->
+            <module name="BluePrint3D_EtsyIntegration" before="Magento_Backend"/>
+        </route>
+    </router>
+</config>

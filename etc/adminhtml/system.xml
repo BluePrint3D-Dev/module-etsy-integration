@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="blueprint3d" translate="label" sortOrder="999">
+            <label>BluePrint3D</label>
+        </tab>
+        <section id="etsy_integration" translate="label" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Etsy Integration</label>
+            <tab>blueprint3d</tab>
+            <resource>BluePrint3D_EtsyIntegration::config</resource>
+
+            <group id="api" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Etsy API Credentials</label>
+                <field id="keystring" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>App Key (Keystring)</label>
+                </field>
+                <field id="shared_secret" translate="label" type="obscure" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Shared Secret</label>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                </field>
+                <!-- OAuth Button -->
+                <field id="auth_button" translate="label" type="button" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <frontend_model>BluePrint3D\EtsyIntegration\Block\Adminhtml\System\Config\Form\Button</frontend_model>
+                </field>
+            </group>
+
+            <group id="global_defaults" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Global Listing Defaults</label>
+                <field id="who_made" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Who made it?</label>
+                    <source_model>BluePrint3D\EtsyIntegration\Model\Config\Source\WhoMade</source_model>
+                </field>
+                <field id="is_supply" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>What is it?</label>
+                    <source_model>BluePrint3D\EtsyIntegration\Model\Config\Source\IsSupply</source_model>
+                </field>
+                <field id="when_made" translate="label" type="select" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>When was it made?</label>
+                    <source_model>BluePrint3D\EtsyIntegration\Model\Config\Source\WhenMade</source_model>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>
