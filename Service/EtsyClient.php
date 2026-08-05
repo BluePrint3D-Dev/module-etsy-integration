@@ -5,7 +5,6 @@ use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\Config\Storage\WriterInterface;
 use Magento\Framework\App\Cache\TypeListInterface;
 use Magento\Framework\Encryption\EncryptorInterface;
-use Magento\Framework\HTTP\Client\Curl;
 use Magento\Framework\Serialize\Serializer\Json;
 use Psr\Log\LoggerInterface;
 
@@ -18,7 +17,6 @@ class EtsyClient
     protected $configWriter;
     protected $cacheTypeList;
     protected $encryptor;
-    protected $curl;
     protected $json;
     protected $logger;
 
@@ -27,7 +25,6 @@ class EtsyClient
         WriterInterface $configWriter,
         TypeListInterface $cacheTypeList,
         EncryptorInterface $encryptor,
-        Curl $curl,
         Json $json,
         LoggerInterface $logger
     ) {
@@ -35,7 +32,6 @@ class EtsyClient
         $this->configWriter = $configWriter;
         $this->cacheTypeList = $cacheTypeList;
         $this->encryptor = $encryptor;
-        $this->curl = $curl;
         $this->json = $json;
         $this->logger = $logger;
     }
@@ -44,8 +40,6 @@ class EtsyClient
     {
         $appKey = $this->scopeConfig->getValue('etsy_integration/api/keystring');
         $encryptedSecret = $this->scopeConfig->getValue('etsy_integration/api/shared_secret');
-
-        // Use the override token if we just auto-refreshed it, otherwise pull from database
         $accessToken = $overrideToken ?: $this->scopeConfig->getValue('etsy_integration/api/access_token');
 
         if (!$appKey || !$encryptedSecret || !$accessToken) {
@@ -53,63 +47,49 @@ class EtsyClient
         }
 
         $sharedSecret = $this->encryptor->decrypt($encryptedSecret);
-
-        $this->curl->setHeaders([
-            'x-api-key' => $appKey . ':' . $sharedSecret,
-            'Authorization' => 'Bearer ' . $accessToken,
-            'Content-Type' => 'application/json'
-        ]);
-
         $url = self::API_BASE_URL . ltrim($endpoint, '/');
 
-        try {
-            if ($method === 'GET') {
-                if (!empty($params)) $url .= '?' . http_build_query($params);
-                $this->curl->get($url);
-            } elseif ($method === 'POST') {
-                $this->curl->post($url, $this->json->serialize($params));
-            } elseif ($method === 'PUT') {
-                $this->curl->setOption(CURLOPT_CUSTOMREQUEST, 'PUT');
-                $this->curl->post($url, $this->json->serialize($params));
-            } elseif ($method === 'DELETE') {
-                $this->curl->setOption(CURLOPT_CUSTOMREQUEST, 'DELETE');
-                $this->curl->get($url);
-            }
+        $ch = curl_init();
+        $headers = [
+            'x-api-key: ' . $appKey . ':' . $sharedSecret,
+            'Authorization: Bearer ' . $accessToken,
+            'Content-Type: application/json'
+        ];
 
-            $statusCode = $this->curl->getStatus();
-            $responseBody = $this->curl->getBody();
-
-            // 1. INTERCEPT EXPIRED TOKEN (HTTP 401)
-            if ($statusCode === 401 && !$isRetry) {
-                $this->logger->info('Etsy Access Token expired. Attempting automatic refresh...');
-
-                $newAccessToken = $this->refreshAccessToken();
-
-                // Retry the exact same request seamlessly with the new token
-                return $this->request($endpoint, $method, $params, true, $newAccessToken);
-            }
-
-            // 2. Handle other API Errors
-            if ($statusCode < 200 || $statusCode >= 300) {
-                $this->logger->error('Etsy API Error', [
-                    'status' => $statusCode,
-                    'endpoint' => $url,
-                    'response' => $responseBody
-                ]);
-                throw new \Exception(__('Etsy API Error (%1): %2', $statusCode, $responseBody));
-            }
-
-            return $this->json->unserialize($responseBody);
-
-        } catch (\Exception $e) {
-            $this->logger->error('Etsy API Request Failed: ' . $e->getMessage());
-            throw $e;
+        if ($method === 'GET') {
+            if (!empty($params)) $url .= '?' . http_build_query($params);
+        } elseif ($method === 'POST') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $this->json->serialize($params));
+        } elseif ($method === 'PATCH' || $method === 'PUT') {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $this->json->serialize($params));
+        } elseif ($method === 'DELETE') {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
         }
+
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+        $responseBody = curl_exec($ch);
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($statusCode === 401 && !$isRetry) {
+            $this->logger->info('Etsy Access Token expired. Attempting automatic refresh...');
+            $newAccessToken = $this->refreshAccessToken();
+            return $this->request($endpoint, $method, $params, true, $newAccessToken);
+        }
+
+        if ($statusCode < 200 || $statusCode >= 300) {
+            $this->logger->error('Etsy API Error', ['status' => $statusCode, 'endpoint' => $url, 'response' => $responseBody]);
+            throw new \Exception(__('Etsy API Error (%1): %2', $statusCode, $responseBody));
+        }
+
+        return empty($responseBody) ? [] : $this->json->unserialize($responseBody);
     }
 
-    /**
-     * Trades the refresh_token for a brand new access_token and saves it
-     */
     private function refreshAccessToken()
     {
         $appKey = $this->scopeConfig->getValue('etsy_integration/api/keystring');
@@ -119,34 +99,75 @@ class EtsyClient
             throw new \Exception(__('Cannot refresh Etsy token: Missing credentials.'));
         }
 
-        $postData = [
+        $postData = http_build_query([
             'grant_type' => 'refresh_token',
             'client_id' => $appKey,
             'refresh_token' => $refreshToken
-        ];
+        ]);
 
-        // Ensure we send form-urlencoded for this specific OAuth endpoint
-        $this->curl->setHeaders(['Content-Type' => 'application/x-www-form-urlencoded']);
-        $this->curl->post(self::OAUTH_TOKEN_URL, $postData);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, self::OAUTH_TOKEN_URL);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded']);
 
-        $response = $this->json->unserialize($this->curl->getBody());
+        $responseBody = curl_exec($ch);
+        curl_close($ch);
+        $response = $this->json->unserialize($responseBody);
 
-        if (isset($response['error'])) {
-            $errorMsg = $response['error_description'] ?? $response['error'];
-            throw new \Exception(__('Token Refresh Error: %1', $errorMsg));
-        }
+        if (isset($response['error'])) throw new \Exception(__('Token Refresh Error: %1', $response['error_description'] ?? $response['error']));
 
         if (isset($response['access_token'])) {
-            // Save the new tokens silently in the background
             $this->configWriter->save('etsy_integration/api/access_token', $response['access_token']);
             $this->configWriter->save('etsy_integration/api/refresh_token', $response['refresh_token']);
-
-            // Clear config cache so the rest of Magento recognizes the new tokens
             $this->cacheTypeList->cleanType('config');
-
             return $response['access_token'];
         }
 
         throw new \Exception(__('Failed to parse new access token from Etsy.'));
+    }
+
+    public function uploadImage($endpoint, $filePath, $rank = null)
+    {
+        $appKey = $this->scopeConfig->getValue('etsy_integration/api/keystring');
+        $encryptedSecret = $this->scopeConfig->getValue('etsy_integration/api/shared_secret');
+        $accessToken = $this->scopeConfig->getValue('etsy_integration/api/access_token');
+
+        if (!$appKey || !$encryptedSecret || !$accessToken) throw new \Exception(__('Etsy API credentials missing.'));
+
+        $sharedSecret = $this->encryptor->decrypt($encryptedSecret);
+        $url = self::API_BASE_URL . ltrim($endpoint, '/');
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'x-api-key: ' . $appKey . ':' . $sharedSecret,
+            'Authorization: Bearer ' . $accessToken
+        ]);
+
+        $postFields = [
+            'image' => new \CURLFile($filePath)
+        ];
+
+        // If a rank is provided, tell Etsy exactly what position this image belongs in
+        if ($rank !== null) {
+            $postFields['rank'] = (int)$rank;
+        }
+
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
+
+        $responseBody = curl_exec($ch);
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($statusCode < 200 || $statusCode >= 300) {
+            $this->logger->error('Etsy Image Upload Error', ['status' => $statusCode, 'response' => $responseBody]);
+            throw new \Exception(__('Etsy Image Upload Error: %1', $responseBody));
+        }
+
+        return empty($responseBody) ? [] : $this->json->unserialize($responseBody);
     }
 }

@@ -48,6 +48,15 @@
                     <comment>Downloads and caches the latest category tree from Etsy.</comment>
                 </field>
             </group>
+
+            <group id="sync_settings" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Product Sync Settings</label>
+                <field id="mode" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Sync Mode</label>
+                    <source_model>BluePrint3D\EtsyIntegration\Model\Config\Source\SyncMode</source_model>
+                    <comment>Real-time will sync instantly upon saving a product. Cron will queue products and sync them in the background (better for performance).</comment>
+                </field>
+            </group>
         </section>
     </system>
 </config>
