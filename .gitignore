@@ -1,0 +1,23 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# PhpStorm / JetBrains IDE files
+.idea/
+*.iml
+*.iws
+
+# Development / Sandbox leftovers
+# (In case you accidentally run a local composer install or test dump in here)
+vendor/
+composer.lock
+.vendor/
+pub/static/
+var/
+generated/
+node_modules/

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <!-- This creates the new collapsible tab -->
+    <fieldset name="etsy_integration" sortOrder="100">
+        <settings>
+            <collapsible>true</collapsible>
+            <label translate="true">Etsy Integration</label>
+        </settings>
+
+        <!-- This injects our database attribute into the tab -->
+        <field name="etsy_taxonomy_id" formElement="select" sortOrder="10">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="source" xsi:type="string">category</item>
+                </item>
+            </argument>
+            <settings>
+                <dataType>number</dataType>
+                <label translate="true">Etsy Category Mapping</label>
+                <dataScope>etsy_taxonomy_id</dataScope>
+            </settings>
+            <formElements>
+                <select>
+                    <settings>
+                        <!-- This calls our massive 3,065 item Source Model -->
+                        <options class="BluePrint3D\EtsyIntegration\Model\Config\Source\EtsyTaxonomy"/>
+                    </settings>
+                </select>
+            </formElements>
+        </field>
+    </fieldset>
+</form>

@@ -39,6 +39,15 @@
                     <source_model>BluePrint3D\EtsyIntegration\Model\Config\Source\WhenMade</source_model>
                 </field>
             </group>
+
+            <group id="data_sync" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Data Synchronization</label>
+                <field id="sync_taxonomy" translate="label" type="button" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="0">
+                    <label>Category Taxonomy</label>
+                    <frontend_model>BluePrint3D\EtsyIntegration\Block\Adminhtml\System\Config\SyncButton</frontend_model>
+                    <comment>Downloads and caches the latest category tree from Etsy.</comment>
+                </field>
+            </group>
         </section>
     </system>
 </config>

@@ -1,0 +1,26 @@
+{
+    "blueprint3d_etsy_listing": {
+        "column": {
+            "entity_id": true,
+            "product_id": true,
+            "etsy_listing_id": true,
+            "sync_status": true,
+            "updated_at": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "BLUEPRINT3D_ETSY_LISTING_PRODUCT_ID": true
+        }
+    },
+    "blueprint3d_etsy_category_map": {
+        "column": {
+            "entity_id": true,
+            "magento_category_id": true,
+            "etsy_category_id": true
+        },
+        "constraint": {
+            "PRIMARY": true,
+            "BLUEPRINT3D_ETSY_CATEGORY_MAP_MAGENTO_CATEGORY_ID": true
+        }
+    }
+}

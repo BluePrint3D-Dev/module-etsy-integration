@@ -4,6 +4,7 @@
         <arguments>
             <argument name="commands" xsi:type="array">
                 <item name="blueprint3d_etsy_test" xsi:type="object">BluePrint3D\EtsyIntegration\Console\Command\TestConnection</item>
+                <item name="blueprint3d_etsy_sync_taxonomy" xsi:type="object">BluePrint3D\EtsyIntegration\Console\Command\SyncTaxonomy</item>
             </argument>
         </arguments>
     </type>
