@@ -65,19 +65,38 @@ class QueueManager
             return false;
         }
 
-        // 2. Add or update queue entry matching exact schema columns
-        $connection->insertOnDuplicate(
-            $tableName,
-            [
-                'product_id' => $productId,
-                'status' => 'pending',
-                'message' => null,
-                'created_at' => date('Y-m-d H:i:s')
-            ],
-            ['status', 'message']
-        );
+        // 2. CHECK IF PRODUCT IS ALREADY IN THE QUEUE
+        $select = $connection->select()
+            ->from($tableName, 'queue_id')
+            ->where('product_id = ?', $productId);
 
-        $this->logger->info("ETSY QUEUE: Product ID {$productId} queued for background sync.");
+        $existingQueueId = $connection->fetchOne($select);
+
+        if ($existingQueueId) {
+            // PRODUCT EXISTS: Reset it to pending and clear the error message
+            $connection->update(
+                $tableName,
+                [
+                    'status' => 'pending',
+                    'message' => null
+                ],
+                ['queue_id = ?' => $existingQueueId]
+            );
+            $this->logger->info("ETSY QUEUE: Product ID {$productId} re-queued (error cleared).");
+        } else {
+            // NEW PRODUCT: Insert a brand new row
+            $connection->insert(
+                $tableName,
+                [
+                    'product_id' => $productId,
+                    'status' => 'pending',
+                    'message' => null,
+                    'created_at' => date('Y-m-d H:i:s')
+                ]
+            );
+            $this->logger->info("ETSY QUEUE: Product ID {$productId} queued for background sync.");
+        }
+
         return true;
     }
 

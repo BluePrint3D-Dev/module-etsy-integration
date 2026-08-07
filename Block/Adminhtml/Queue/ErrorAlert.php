@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -59,5 +59,57 @@ class ErrorAlert extends Template
     public function isLimitReached(): bool
     {
         return $this->queueManager->hasReachedLimit();
+    }
+
+    /**
+     * Retrieves the specific products and error messages that failed to sync.
+     *
+     * @return array
+     */
+    public function getErrorDetails(): array
+    {
+        $errors = [];
+
+        try {
+            $connection = $this->resourceConnection->getConnection();
+            $queueTable = $connection->getTableName('blueprint3d_etsy_queue');
+            $productTable = $connection->getTableName('catalog_product_entity');
+
+            if (!$connection->isTableExists($queueTable)) {
+                return [];
+            }
+
+            // Updated column to 'message' to match your database schema
+            $select = $connection->select()
+                ->from(['q' => $queueTable], ['product_id', 'message'])
+                ->joinLeft(
+                    ['p' => $productTable],
+                    'q.product_id = p.entity_id',
+                    ['sku']
+                )
+                ->where('q.status = ?', 'error')
+                ->limit(20);
+
+            $results = $connection->fetchAll($select);
+
+            foreach ($results as $row) {
+                $sku = !empty($row['sku']) ? $row['sku'] : 'Deleted Product (ID: ' . $row['product_id'] . ')';
+
+                // Extracting from the correct 'message' column now
+                $errorMessage = !empty($row['message']) ? $row['message'] : 'Unknown API Error';
+
+                $errors[] = [
+                    'sku' => $sku,
+                    'message' => $errorMessage
+                ];
+            }
+        } catch (\Exception $e) {
+            $errors[] = [
+                'sku' => 'System Error',
+                'message' => 'Could not load error details: ' . $e->getMessage()
+            ];
+        }
+
+        return $errors;
     }
 }
