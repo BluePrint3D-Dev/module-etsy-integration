@@ -1,4 +1,5 @@
-<?php
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
  * 
@@ -12,19 +13,11 @@
  * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
  * @license   Commercial Proprietary EULA (See LICENSE.txt)
  */
-namespace BluePrint3D\EtsyIntegration\Model\ResourceModel\Taxonomy;
-
-use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
-
-class Collection extends AbstractCollection
-{
-    protected $_idFieldName = 'entity_id';
-
-    protected function _construct()
-    {
-        $this->_init(
-            \BluePrint3D\EtsyIntegration\Model\Taxonomy::class,
-            \BluePrint3D\EtsyIntegration\Model\ResourceModel\Taxonomy::class
-        );
-    }
-}
+-->
+<form xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <settings>
+        <buttons>
+            <button name="delete_etsy" class="BluePrint3D\EtsyIntegration\Block\Adminhtml\Product\Edit\Button\DeleteEtsy"/>
+        </buttons>
+    </settings>
+</form>

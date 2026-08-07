@@ -12,19 +12,15 @@
  * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
  * @license   Commercial Proprietary EULA (See LICENSE.txt)
  */
-namespace BluePrint3D\EtsyIntegration\Model\ResourceModel\Taxonomy;
+namespace BluePrint3D\EtsyIntegration\Model\Config\Source;
 
-use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
-
-class Collection extends AbstractCollection
+class UnsupportedOptions implements \Magento\Framework\Option\ArrayInterface
 {
-    protected $_idFieldName = 'entity_id';
-
-    protected function _construct()
+    public function toOptionArray()
     {
-        $this->_init(
-            \BluePrint3D\EtsyIntegration\Model\Taxonomy::class,
-            \BluePrint3D\EtsyIntegration\Model\ResourceModel\Taxonomy::class
-        );
+        return [
+            ['value' => 'strict', 'label' => __('Strict (Abort Sync)')],
+            ['value' => 'lenient', 'label' => __('Lenient (Strip Unsupported & Continue)')],
+        ];
     }
 }

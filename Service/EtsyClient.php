@@ -1,4 +1,17 @@
 <?php
+/**
+ * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
+ * 
+ * Commercial Software License (EULA)
+ * This software is licensed, not sold. Unauthorized reproduction, distribution,
+ * reverse engineering, or sublicensing of this source code, modified or
+ * unmodified, without an active license agreement from BluePrint3D Ltd
+ * is strictly prohibited.
+ *
+ * @author    BluePrint3D Ltd <support@blueprint3d.dev>
+ * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
+ * @license   Commercial Proprietary EULA (See LICENSE.txt)
+ */
 namespace BluePrint3D\EtsyIntegration\Service;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
@@ -169,5 +182,17 @@ class EtsyClient
         }
 
         return empty($responseBody) ? [] : $this->json->unserialize($responseBody);
+    }
+
+    public function updatePersonalization($shopId, $listingId, array $questions)
+    {
+        // Etsy requires this query param to unlock the new multiple-question feature
+        $endpoint = "shops/{$shopId}/listings/{$listingId}/personalization?supports_multiple_personalization_questions=true";
+
+        $payload = [
+            'personalization_questions' => $questions
+        ];
+
+        return $this->request($endpoint, 'POST', $payload);
     }
 }
