@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <columns name="product_columns">
+        <column name="etsy_status" class="BluePrint3D\EtsyIntegration\Ui\Component\Listing\Column\EtsyStatus" sortOrder="80">
+            <settings>
+                <label translate="true">Etsy Status</label>
+                <!-- This tells Magento to render our raw HTML badges instead of text -->
+                <bodyTmpl>ui/grid/cells/html</bodyTmpl>
+                <sortable>false</sortable>
+            </settings>
+        </column>
+    </columns>
+</listing>
