@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -17,87 +17,92 @@ namespace BluePrint3D\EtsyIntegration\Service;
 use Magento\Catalog\Model\Product;
 use BluePrint3D\EtsyIntegration\Service\EtsyClient;
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\CatalogInventory\Api\StockRegistryInterface;
-use Magento\Catalog\Api\CategoryRepositoryInterface;
 use Magento\Framework\Filesystem;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Catalog\Model\ResourceModel\Product\Action as ProductAction;
 use Psr\Log\LoggerInterface;
+use BluePrint3D\EtsyIntegration\Model\Sync\PayloadBuilder;
 
 class ProductSync
 {
     protected $etsyClient;
     protected $scopeConfig;
-    protected $stockRegistry;
-    protected $categoryRepository;
     protected $mediaDirectory;
     protected $productAction;
     protected $logger;
     protected $customOptionManager;
+    protected $payloadBuilder;
 
     public function __construct(
         EtsyClient $etsyClient,
         ScopeConfigInterface $scopeConfig,
-        StockRegistryInterface $stockRegistry,
-        CategoryRepositoryInterface $categoryRepository,
         Filesystem $filesystem,
         ProductAction $productAction,
         LoggerInterface $logger,
-        EtsyCustomOptionManager $customOptionManager
+        EtsyCustomOptionManager $customOptionManager,
+        PayloadBuilder $payloadBuilder
     ) {
         $this->etsyClient = $etsyClient;
         $this->scopeConfig = $scopeConfig;
-        $this->stockRegistry = $stockRegistry;
-        $this->categoryRepository = $categoryRepository;
         $this->mediaDirectory = $filesystem->getDirectoryRead(DirectoryList::MEDIA);
         $this->productAction = $productAction;
         $this->logger = $logger;
         $this->customOptionManager = $customOptionManager;
+        $this->payloadBuilder = $payloadBuilder;
     }
 
     public function syncRealTime(Product $product)
     {
         try {
             $shopId = $this->scopeConfig->getValue('etsy_integration/api/shop_id');
-            if (!$shopId) throw new \Exception("Shop ID not found.");
-
-            $stockItem = $this->stockRegistry->getStockItem($product->getId());
-            $qty = max(1, (int)$stockItem->getQty());
-
-            $taxonomyId = $this->getEtsyTaxonomyId($product);
-            if (!$taxonomyId) throw new \Exception("No Etsy Category mapped.");
+            if (!$shopId) {
+                throw new \Exception("Shop ID not found.");
+            }
 
             $shippingProfileId = $this->getDefaultShippingProfileId($shopId);
             $readinessStateId = $this->getDefaultReadinessStateId($shopId);
 
-            // 1. Build Payload
-            $payload = [
-                'quantity' => $qty,
-                'title' => substr($product->getName(), 0, 140),
-                'description' => $this->formatDescription($product),
-                'price' => (float)$product->getPrice(),
-                'who_made' => $product->getData('etsy_who_made'),
-                'when_made' => $product->getData('etsy_when_made'),
-                'taxonomy_id' => (int)$taxonomyId,
-                'is_supply' => (bool)$product->getData('etsy_is_supply'),
-                'should_auto_renew' => (bool)$product->getData('etsy_auto_renew'),
-                'tags' => $this->getEtsyTags($product),
-                'shipping_profile_id' => (int)$shippingProfileId,
-                'readiness_state_id' => (int)$readinessStateId
-            ];
+            // 1. Build Payload (Delegated to PayloadBuilder for Pro Price Rule plugin interception)
+            $payload = $this->payloadBuilder->build($product, (int)$shippingProfileId, (int)$readinessStateId);
 
-            // 2. CREATE or UPDATE Listing?
+            // 2. CREATE or UPDATE Listing
             $etsyListingId = $product->getData('etsy_listing_id');
             $activeListingId = null;
 
             if ($etsyListingId) {
-                // UPDATE EXISTING
-                $this->logger->info("Updating existing Etsy Listing: " . $etsyListingId);
-                $this->etsyClient->request("shops/{$shopId}/listings/{$etsyListingId}", 'PATCH', $payload);
-                $activeListingId = $etsyListingId;
+                try {
+                    // TRY UPDATING EXISTING LISTING
+                    $this->logger->info("Updating existing Etsy Listing: " . $etsyListingId);
+                    $this->etsyClient->request("shops/{$shopId}/listings/{$etsyListingId}", 'PATCH', $payload);
+                    $activeListingId = $etsyListingId;
 
-            } else {
-                // CREATE NEW
+                } catch (\Exception $e) {
+                    // CATCH GHOST LISTING (Deleted or Removed on Etsy directly)
+                    $errMsg = strtolower($e->getMessage());
+
+                    $isGhost = str_contains($errMsg, '404')
+                        || str_contains($errMsg, 'not found')
+                        || str_contains($errMsg, 'does not exist')
+                        || str_contains($errMsg, 'state: removed');
+
+                    if ($isGhost) {
+                        $this->logger->warning("Etsy Listing ID {$etsyListingId} is a Ghost Listing (Removed/Not Found). Clearing local attribute and recreating...");
+
+                        // Wipe dead attribute from DB
+                        $this->productAction->updateAttributes([$product->getId()], ['etsy_listing_id' => null], 0);
+
+                        // Clear from current product object so the POST block below triggers
+                        $product->setData('etsy_listing_id', null);
+                        $etsyListingId = null;
+                    } else {
+                        // If it's a 500 error, auth error, or invalid payload, throw it back up
+                        throw $e;
+                    }
+                }
+            }
+
+            // FALLBACK TO CREATE NEW (if no listing ID existed or if ghost ID was just wiped above)
+            if (!$etsyListingId) {
                 $this->logger->info("Creating brand new Etsy Listing.");
                 $response = $this->etsyClient->request("shops/{$shopId}/listings", 'POST', $payload);
 
@@ -128,85 +133,29 @@ class ProductSync
         }
     }
 
-    /**
-     * Extracts Meta Keywords, strips invalid characters, truncates to 20 chars, and caps at 13 tags.
-     * If Meta Keywords are empty, intelligently falls back to generating tags from the Product Name.
-     */
-    private function getEtsyTags(Product $product)
-    {
-        $tags = [];
-        $metaKeywords = (string)$product->getData('meta_keyword');
-
-        // SMART FALLBACK: If the merchant forgot Meta Keywords, use the Product Name!
-        if (empty(trim($metaKeywords))) {
-            $name = $product->getName();
-            $this->logger->info("Meta Keywords empty! Auto-generating tags from Product Name: " . $name);
-
-            // Create a combo of the full name, plus individual words
-            $metaKeywords = $name . ', ' . str_replace(' ', ', ', $name);
-        } else {
-            $this->logger->info("Raw Magento Meta Keywords: " . $metaKeywords);
-        }
-
-        // Split by comma, semicolon, or new line
-        $keywordArray = preg_split('/[,;\n]+/', $metaKeywords);
-
-        foreach ($keywordArray as $keyword) {
-            // Etsy only allows alphanumeric characters and spaces in tags
-            $clean = preg_replace('/[^a-zA-Z0-9\s]/', '', $keyword);
-            $clean = trim($clean);
-
-            if ($clean !== '') {
-                // Force the tag to fit Etsy's 20-character limit
-                if (strlen($clean) > 20) {
-                    $clean = substr($clean, 0, 20);
-                }
-
-                $clean = strtolower($clean);
-
-                // Prevent duplicate tags
-                if (!in_array($clean, $tags)) {
-                    $tags[] = $clean;
-                }
-            }
-
-            if (count($tags) >= 13) break;
-        }
-
-        $this->logger->info("Final Etsy Tags: ", $tags);
-
-        return $tags;
-    }
-
-    /**
-     * Loops through the Magento Media Gallery, sorts by position, and uploads up to 10 photos
-     */
     private function uploadGalleryImages(Product $product, $shopId, $listingId)
     {
         $galleryImages = $product->getMediaGalleryImages();
 
         if ($galleryImages && $galleryImages->getSize() > 0) {
-
-            // 1. Convert to an array and sort explicitly by Magento's 'position' attribute
             $imagesArray = $galleryImages->getItems();
             usort($imagesArray, function($a, $b) {
                 return (int)$a->getPosition() <=> (int)$b->getPosition();
             });
 
-            $rank = 1; // Etsy ranks start at 1
+            $rank = 1;
 
             foreach ($imagesArray as $image) {
-                if ($rank > 10) break; // Hard stop at Etsy's maximum
+                if ($rank > 10) {
+                    break;
+                }
 
                 $imageFile = $image->getFile();
                 if ($imageFile) {
                     $imagePath = $this->mediaDirectory->getAbsolutePath('catalog/product' . $imageFile);
                     if (file_exists($imagePath)) {
                         $this->logger->info("Uploading gallery image to Etsy at Rank {$rank}: " . $imagePath);
-
-                        // Pass the $rank to our updated client
                         $this->etsyClient->uploadImage("shops/{$shopId}/listings/{$listingId}/images", $imagePath, $rank);
-
                         $rank++;
                     }
                 }
@@ -214,40 +163,21 @@ class ProductSync
         }
     }
 
-    private function formatDescription(Product $product)
-    {
-        $desc = $product->getDescription() ?: $product->getName();
-        $desc = html_entity_decode($desc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $desc = html_entity_decode($desc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        $desc = preg_replace('/<br\s*\/?>/i', "\n", $desc);
-        $desc = str_replace(['</p>', '</div>'], "\n\n", $desc);
-        $desc = strip_tags($desc);
-        $desc = preg_replace("/\n\n+/", "\n\n", $desc);
-        return trim($desc);
-    }
-
-    private function getEtsyTaxonomyId(Product $product)
-    {
-        $categoryIds = $product->getCategoryIds();
-        foreach ($categoryIds as $categoryId) {
-            $category = $this->categoryRepository->get($categoryId);
-            $taxId = $category->getData('etsy_taxonomy_id');
-            if (!empty($taxId)) return $taxId;
-        }
-        return null;
-    }
-
     private function getDefaultShippingProfileId($shopId)
     {
         $response = $this->etsyClient->request("shops/{$shopId}/shipping-profiles", 'GET');
-        if (!empty($response['results'])) return $response['results'][0]['shipping_profile_id'];
+        if (!empty($response['results'])) {
+            return $response['results'][0]['shipping_profile_id'];
+        }
         throw new \Exception("No Shipping Profiles found.");
     }
 
     private function getDefaultReadinessStateId($shopId)
     {
         $response = $this->etsyClient->request("shops/{$shopId}/readiness-state-definitions", 'GET');
-        if (!empty($response['results'])) return $response['results'][0]['readiness_state_id'];
+        if (!empty($response['results'])) {
+            return $response['results'][0]['readiness_state_id'];
+        }
         throw new \Exception("No Processing Profiles found.");
     }
 }

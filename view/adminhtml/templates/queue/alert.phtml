@@ -1,17 +1,14 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
  * unmodified, without an active license agreement from BluePrint3D Ltd
  * is strictly prohibited.
- *
- * @author    BluePrint3D Ltd <support@blueprint3d.dev>
- * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
- * @license   Commercial Proprietary EULA (See LICENSE.txt)
  */
+
 /** @var \BluePrint3D\EtsyIntegration\Block\Adminhtml\Queue\ErrorAlert $block */
 $errorCount = $block->getErrorCount();
 $isLimitReached = $block->isLimitReached();
@@ -37,11 +34,23 @@ $isLimitReached = $block->isLimitReached();
 
     <!-- BLUEPRINT3D ERROR BANNER -->
 <?php if ($errorCount > 0): ?>
-    <div style="background: linear-gradient(90deg, #fff5f5 0%, #ffebeb 100%); border-left: 6px solid #e22626; padding: 16px 24px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; align-items: center; font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; border-radius: 2px;">
-        <div style="font-size: 26px; margin-right: 18px; line-height: 1;">⚠️</div>
+    <?php $errorDetails = $block->getErrorDetails(); // We will add this method to your Block class next! ?>
+    <div style="background: linear-gradient(90deg, #fff5f5 0%, #ffebeb 100%); border-left: 6px solid #e22626; padding: 16px 24px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; border-radius: 2px;">
+        <div style="font-size: 26px; margin-right: 18px; line-height: 1; padding-top: 4px;">⚠️</div>
         <div>
-            <h4 style="margin: 0 0 4px 0; color: #cc0000; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Etsy Sync Error Detected</h4>
-            <p style="margin: 0; color: #555; font-size: 14px; line-height: 1.4;"><strong><?= $errorCount ?> product(s)</strong> failed to sync to Etsy. Please review the Etsy Queue or your <code>system.log</code> to resolve the conflicts.</p>
+            <h4 style="margin: 0 0 6px 0; color: #cc0000; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Etsy Sync Error Detected</h4>
+            <p style="margin: 0 0 10px 0; color: #555; font-size: 14px; line-height: 1.4;"><strong><?= $errorCount ?> product(s)</strong> failed to sync to Etsy. Please review the errors below:</p>
+
+            <?php if (!empty($errorDetails)): ?>
+                <ul style="margin: 0; padding: 0 0 0 18px; color: #cc0000; font-size: 13px; font-weight: 600; max-height: 150px; overflow-y: auto;">
+                    <?php foreach ($errorDetails as $error): ?>
+                        <li style="margin-bottom: 4px;">
+                            <strong><?= $block->escapeHtml($error['sku']) ?>:</strong>
+                            <span style="font-weight: 400; color: #333;"><?= $block->escapeHtml($error['message']) ?></span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
         </div>
     </div>
 <?php endif; ?>
