@@ -1,0 +1,33 @@
+{
+  "type": "magento2-module",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "BluePrint3D Ltd",
+      "email": "support@blueprint3d.dev",
+      "homepage": "https://blueprint3d.dev"
+    }
+  ],
+  "support": {
+    "email": "support@blueprint3d.dev",
+    "docs": "https://blueprint3d.dev"
+  },
+
+  "--- MODULE SPECIFIC BELOW ---": "-------------------------",
+
+  "name": "blueprint3d/module-etsy-integration",
+  "description": "Seamlessly sync your Magento catalog to Etsy with background queue processing.",
+
+  "require": {
+    "php": "~8.1.0||~8.2.0||~8.3.0",
+    "magento/framework": "*"
+  },
+  "autoload": {
+    "files": [
+      "registration.php"
+    ],
+    "psr-4": {
+      "BluePrint3D\\EtsyIntegration\\": ""
+    }
+  }
+}

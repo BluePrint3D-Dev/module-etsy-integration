@@ -24,7 +24,7 @@ class QueueManager
      * Maximum allowed products for the Free / Freemium tier.
      * Change this single constant to switch between dev testing (5) and production (20).
      */
-    private const FREE_TIER_PRODUCT_LIMIT = 20;
+    private const FREE_TIER_PRODUCT_LIMIT = 5;
 
     protected $resourceConnection;
     protected $scopeConfig;
@@ -84,7 +84,7 @@ class QueueManager
     /**
      * Verifies if the product can be queued based on unique synced products count
      */
-    private function canQueueProduct(int $productId): bool
+    public function canQueueProduct(int $productId): bool
     {
         $connection = $this->resourceConnection->getConnection();
         $tableName = $connection->getTableName('blueprint3d_etsy_queue');
