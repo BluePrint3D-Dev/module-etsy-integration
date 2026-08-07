@@ -1,4 +1,19 @@
 <?xml version="1.0"?>
+<!--
+/**
+ * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
+ * 
+ * Commercial Software License (EULA)
+ * This software is licensed, not sold. Unauthorized reproduction, distribution,
+ * reverse engineering, or sublicensing of this source code, modified or
+ * unmodified, without an active license agreement from BluePrint3D Ltd
+ * is strictly prohibited.
+ *
+ * @author    BluePrint3D Ltd <support@blueprint3d.dev>
+ * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
+ * @license   Commercial Proprietary EULA (See LICENSE.txt)
+ */
+-->
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
     <system>
         <tab id="blueprint3d" translate="label" sortOrder="999">
@@ -55,6 +70,16 @@
                     <label>Sync Mode</label>
                     <source_model>BluePrint3D\EtsyIntegration\Model\Config\Source\SyncMode</source_model>
                     <comment>Real-time will sync instantly upon saving a product. Cron will queue products and sync them in the background (better for performance).</comment>
+                </field>
+                <field id="unsupported_options" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Unsupported Options Handling</label>
+                    <source_model>BluePrint3D\EtsyIntegration\Model\Config\Source\UnsupportedOptions</source_model>
+                    <comment><![CDATA[How should the sync engine handle custom options that Etsy does not support (e.g. Dates, Multi-selects, or more than 2 Dropdowns)?<br/><b>Strict:</b> Abort the sync completely and log an error.<br/><b>Lenient:</b> Strip unsupported options, sync what it can, and log a warning.]]></comment>
+                </field>
+                <field id="upgrade_notice" translate="label" type="button" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Freemium Version</label>
+                    <frontend_model>BluePrint3D\EtsyIntegration\Block\Adminhtml\System\Config\UpgradeButton</frontend_model>
+                    <comment><![CDATA[Currently running the Freemium Tier (20 Product Limit). Upgrade to Pro to unlock unlimited catalog syncing, 2-way stock sync, and automated Etsy order imports.]]></comment>
                 </field>
             </group>
         </section>

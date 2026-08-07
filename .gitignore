@@ -21,3 +21,4 @@ pub/static/
 var/
 generated/
 node_modules/
+local-notes.txt

@@ -1,4 +1,5 @@
-<?php
+<?xml version="1.0"?>
+<!--
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
  * 
@@ -12,19 +13,14 @@
  * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
  * @license   Commercial Proprietary EULA (See LICENSE.txt)
  */
-namespace BluePrint3D\EtsyIntegration\Model\ResourceModel\Taxonomy;
-
-use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
-
-class Collection extends AbstractCollection
-{
-    protected $_idFieldName = 'entity_id';
-
-    protected function _construct()
-    {
-        $this->_init(
-            \BluePrint3D\EtsyIntegration\Model\Taxonomy::class,
-            \BluePrint3D\EtsyIntegration\Model\ResourceModel\Taxonomy::class
-        );
-    }
-}
+-->
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="content">
+            <block class="BluePrint3D\EtsyIntegration\Block\Adminhtml\Queue\ErrorAlert"
+                   name="etsy_sync_alert_grid"
+                   template="BluePrint3D_EtsyIntegration::queue/alert.phtml"
+                   before="-"/>
+        </referenceContainer>
+    </body>
+</page>

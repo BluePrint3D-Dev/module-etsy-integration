@@ -1,0 +1,72 @@
+1. Advanced Inventory & Order Syncing
+
+* Two-Way Stock Sync: Freemium syncs stock from Magento to Etsy. Pro syncs stock back from Etsy to Magento when an Etsy sale happens (preventing accidental overselling across channels).
+* Etsy Order Import: Automatically pull Etsy orders straight into Magento's order management grid as native Magento orders, keeping fulfillment all in one dashboard.
+* Tracking Number Push: Automatically push shipment updates and tracking carrier info back to Etsy as soon as the Magento shipment is generated.
+
+2. Multi-Store & Custom Mapping Logic
+* Multi-Store View Mapping: Map specific Magento Store Views to different Etsy shops (ideal for merchants running international shops or distinct brands from one Magento backend).
+* Dynamic Price Rules: Allow merchants to apply price modifiers specifically for Etsy (e.g., "Automatically markup all Etsy prices by +15% or +£2 to cover Etsy transaction fees").
+* Automated Category Mapping Rules: Auto-map Etsy Taxonomy IDs based on Magento product attributes (like SKU patterns, brand, or custom attributes) rather than manual category assignment.
+
+3. Configurable Products & Variant Variations
+* Configurable / Matrix Sync: Handle true Magento Configurable Products (Child SKUs with size/color/material matrix variations) to map natively to Etsy's Red Box variations.
+* Custom Option Price Surcharges: Compute and reflect option price modifiers (e.g., +£5 for Engraving) on Etsy's listing variations seamlessly.
+
+4. Admin Diagnostics & Bulk Controls
+* Mass Action Bulk Queueing: Add a "Sync to Etsy" option to the native Magento Product Mass Action dropdown for 1-click bulk updates.
+* Sync Health & Error UI Dashboard: A dedicated grid in the Magento Admin showing failed sync items, complete error logs from Etsy's API, and a 1-click "Retry Sync" button.
+* Automated Webhooks: Instant real-time updates using Magento product update events rather than waiting for cron intervals.
+
+
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; text-align: left;">
+    <thead>
+        <tr style="background-color: #f4f4f4;">
+            <th>Feature</th>
+            <th>Freemium Tier (Free)</th>
+            <th>Pro Tier (£150 + £99/yr)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><strong>Listing Limit</strong></td>
+            <td>Up to 20 Products</td>
+            <td><strong>Unlimited Products</strong></td>
+        </tr>
+        <tr>
+            <td><strong>Catalog Sync</strong></td>
+            <td>Real-time Save Sync</td>
+            <td>Real-time + Cron Queue</td>
+        </tr>
+        <tr>
+            <td><strong>Custom Options / Personalization</strong></td>
+            <td>Standard Fields &amp; Shared Options</td>
+            <td>Standard Fields &amp; Shared Options</td>
+        </tr>
+        <tr>
+            <td><strong>Order Management</strong></td>
+            <td>Manual</td>
+            <td><strong>Automated Etsy Order Import</strong></td>
+        </tr>
+        <tr>
+            <td><strong>Stock Management</strong></td>
+            <td>1-Way (Magento ➔ Etsy)</td>
+            <td><strong>2-Way Real-time Sync</strong></td>
+        </tr>
+        <tr>
+            <td><strong>Etsy Fee Surcharge Markup</strong></td>
+            <td>❌</td>
+            <td><strong>✅ (+% or +£ Price Rules)</strong></td>
+        </tr>
+        <tr>
+            <td><strong>Configurable Variations</strong></td>
+            <td>❌</td>
+            <td><strong>✅ Full Matrix Support</strong></td>
+        </tr>
+        <tr>
+            <td><strong>Bulk Admin Operations</strong></td>
+            <td>❌</td>
+            <td><strong>✅ Mass Sync &amp; Error Dashboard</strong></td>
+        </tr>
+    </tbody>
+</table>

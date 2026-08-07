@@ -1,4 +1,17 @@
 <?php
+/**
+ * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
+ * 
+ * Commercial Software License (EULA)
+ * This software is licensed, not sold. Unauthorized reproduction, distribution,
+ * reverse engineering, or sublicensing of this source code, modified or
+ * unmodified, without an active license agreement from BluePrint3D Ltd
+ * is strictly prohibited.
+ *
+ * @author    BluePrint3D Ltd <support@blueprint3d.dev>
+ * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
+ * @license   Commercial Proprietary EULA (See LICENSE.txt)
+ */
 namespace BluePrint3D\EtsyIntegration\Service;
 
 use Magento\Catalog\Model\Product;
@@ -20,6 +33,7 @@ class ProductSync
     protected $mediaDirectory;
     protected $productAction;
     protected $logger;
+    protected $customOptionManager;
 
     public function __construct(
         EtsyClient $etsyClient,
@@ -28,7 +42,8 @@ class ProductSync
         CategoryRepositoryInterface $categoryRepository,
         Filesystem $filesystem,
         ProductAction $productAction,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        EtsyCustomOptionManager $customOptionManager
     ) {
         $this->etsyClient = $etsyClient;
         $this->scopeConfig = $scopeConfig;
@@ -37,6 +52,7 @@ class ProductSync
         $this->mediaDirectory = $filesystem->getDirectoryRead(DirectoryList::MEDIA);
         $this->productAction = $productAction;
         $this->logger = $logger;
+        $this->customOptionManager = $customOptionManager;
     }
 
     public function syncRealTime(Product $product)
@@ -70,14 +86,15 @@ class ProductSync
                 'readiness_state_id' => (int)$readinessStateId
             ];
 
-            // 2. CREATE or UPDATE?
+            // 2. CREATE or UPDATE Listing?
             $etsyListingId = $product->getData('etsy_listing_id');
+            $activeListingId = null;
 
             if ($etsyListingId) {
                 // UPDATE EXISTING
                 $this->logger->info("Updating existing Etsy Listing: " . $etsyListingId);
                 $this->etsyClient->request("shops/{$shopId}/listings/{$etsyListingId}", 'PATCH', $payload);
-                return $etsyListingId;
+                $activeListingId = $etsyListingId;
 
             } else {
                 // CREATE NEW
@@ -85,15 +102,25 @@ class ProductSync
                 $response = $this->etsyClient->request("shops/{$shopId}/listings", 'POST', $payload);
 
                 if (isset($response['listing_id'])) {
-                    $newListingId = $response['listing_id'];
-                    $this->productAction->updateAttributes([$product->getId()], ['etsy_listing_id' => $newListingId], 0);
+                    $activeListingId = $response['listing_id'];
+                    $this->productAction->updateAttributes([$product->getId()], ['etsy_listing_id' => $activeListingId], 0);
 
                     // Upload Multiple Images (Etsy Max is 10)
-                    $this->uploadGalleryImages($product, $shopId, $newListingId);
-
-                    return $newListingId;
+                    $this->uploadGalleryImages($product, $shopId, $activeListingId);
                 }
             }
+
+            // 3. SYNC CUSTOM OPTIONS (Personalizations)
+            if ($activeListingId) {
+                $personalizationQuestions = $this->customOptionManager->extractEtsyPersonalizations($product);
+
+                if (!empty($personalizationQuestions)) {
+                    $this->logger->info("Syncing " . count($personalizationQuestions) . " Custom Options to Etsy.");
+                    $this->etsyClient->updatePersonalization($shopId, $activeListingId, $personalizationQuestions);
+                }
+            }
+
+            return $activeListingId;
 
         } catch (\Exception $e) {
             $this->logger->error("ETSY SYNC FAILED: " . $e->getMessage());

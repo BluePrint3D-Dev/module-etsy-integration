@@ -1,0 +1,63 @@
+<?php
+/**
+ * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
+ * 
+ * Commercial Software License (EULA)
+ * This software is licensed, not sold. Unauthorized reproduction, distribution,
+ * reverse engineering, or sublicensing of this source code, modified or
+ * unmodified, without an active license agreement from BluePrint3D Ltd
+ * is strictly prohibited.
+ *
+ * @author    BluePrint3D Ltd <support@blueprint3d.dev>
+ * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
+ * @license   Commercial Proprietary EULA (See LICENSE.txt)
+ */
+namespace BluePrint3D\EtsyIntegration\Block\Adminhtml\Queue;
+
+use Magento\Backend\Block\Template;
+use Magento\Framework\App\ResourceConnection;
+use BluePrint3D\EtsyIntegration\Service\QueueManager;
+
+class ErrorAlert extends Template
+{
+    protected $resourceConnection;
+    protected $queueManager;
+
+    public function __construct(
+        Template\Context $context,
+        ResourceConnection $resourceConnection,
+        QueueManager $queueManager,
+        array $data = []
+    ) {
+        $this->resourceConnection = $resourceConnection;
+        $this->queueManager = $queueManager;
+        parent::__construct($context, $data);
+    }
+
+    /**
+     * Get the total count of products that failed to sync
+     */
+    public function getErrorCount(): int
+    {
+        $connection = $this->resourceConnection->getConnection();
+        $tableName = $connection->getTableName('blueprint3d_etsy_queue');
+
+        if (!$connection->isTableExists($tableName)) {
+            return 0;
+        }
+
+        $select = $connection->select()
+            ->from($tableName, new \Zend_Db_Expr('COUNT(queue_id)'))
+            ->where('status = ?', 'error');
+
+        return (int)$connection->fetchOne($select);
+    }
+
+    /**
+     * Check if the merchant has hit their freemium limit
+     */
+    public function isLimitReached(): bool
+    {
+        return $this->queueManager->hasReachedLimit();
+    }
+}
