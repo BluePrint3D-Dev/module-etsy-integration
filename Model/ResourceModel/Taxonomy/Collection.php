@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -16,10 +16,22 @@ namespace BluePrint3D\EtsyIntegration\Model\ResourceModel\Taxonomy;
 
 use Magento\Framework\Model\ResourceModel\Db\Collection\AbstractCollection;
 
+/**
+ * Class Collection
+ * Resource collection for Etsy taxonomy items.
+ */
 class Collection extends AbstractCollection
 {
+    /**
+     * @var string
+     */
     protected $_idFieldName = 'entity_id';
 
+    /**
+     * Initialize taxonomy collection model and resource model
+     *
+     * @return void
+     */
     protected function _construct()
     {
         $this->_init(

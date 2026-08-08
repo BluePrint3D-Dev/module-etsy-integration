@@ -1,17 +1,53 @@
 <?php
+/**
+ * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
+ *
+ * Commercial Software License (EULA)
+ * This software is licensed, not sold. Unauthorized reproduction, distribution,
+ * reverse engineering, or sublicensing of this source code, modified or
+ * unmodified, without an active license agreement from BluePrint3D Ltd
+ * is strictly prohibited.
+ *
+ * @author    BluePrint3D Ltd <support@blueprint3d.dev>
+ * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
+ * @license   Commercial Proprietary EULA (See LICENSE.txt)
+ */
 namespace BluePrint3D\EtsyIntegration\Model\Sync;
 
 use Magento\Catalog\Model\Product;
 use Magento\CatalogInventory\Api\StockRegistryInterface;
 use Magento\Catalog\Api\CategoryRepositoryInterface;
+use Magento\Framework\Exception\LocalizedException;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Class PayloadBuilder
+ * Constructs the array payloads required by the Etsy API.
+ */
 class PayloadBuilder
 {
+    /**
+     * @var StockRegistryInterface
+     */
     protected $stockRegistry;
+
+    /**
+     * @var CategoryRepositoryInterface
+     */
     protected $categoryRepository;
+
+    /**
+     * @var LoggerInterface
+     */
     protected $logger;
 
+    /**
+     * PayloadBuilder constructor.
+     *
+     * @param StockRegistryInterface $stockRegistry
+     * @param CategoryRepositoryInterface $categoryRepository
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         StockRegistryInterface $stockRegistry,
         CategoryRepositoryInterface $categoryRepository,
@@ -24,6 +60,12 @@ class PayloadBuilder
 
     /**
      * Assembles the full API payload array for Etsy listing creation/update.
+     *
+     * @param Product $product
+     * @param int $shippingProfileId
+     * @param int $readinessStateId
+     * @return array
+     * @throws LocalizedException
      */
     public function build(Product $product, int $shippingProfileId, int $readinessStateId): array
     {
@@ -32,7 +74,9 @@ class PayloadBuilder
 
         $taxonomyId = $this->getEtsyTaxonomyId($product);
         if (!$taxonomyId) {
-            throw new \Exception("No Etsy Category mapped for product: " . $product->getSku());
+            throw new LocalizedException(
+                __('No Etsy Category mapped for product: %1', $product->getSku())
+            );
         }
 
         return [
@@ -53,7 +97,11 @@ class PayloadBuilder
 
     /**
      * Calculates base product price.
+     *
      * PUBLIC method so Pro plugin (ApplyPriceRulePlugin) can intercept and apply markups (+% or +£).
+     *
+     * @param Product $product
+     * @return float
      */
     public function getCalculatedPrice(Product $product): float
     {
@@ -61,6 +109,12 @@ class PayloadBuilder
         return (float)$price;
     }
 
+    /**
+     * Generate Etsy tags from product meta keywords or name.
+     *
+     * @param Product $product
+     * @return array
+     */
     private function getEtsyTags(Product $product): array
     {
         $tags = [];
@@ -97,18 +151,35 @@ class PayloadBuilder
         return $tags;
     }
 
+    /**
+     * Cleans Magento HTML descriptions into plain text for Etsy.
+     *
+     * @param Product $product
+     * @return string
+     */
     private function formatDescription(Product $product): string
     {
         $desc = $product->getDescription() ?: $product->getName();
+
+        // phpcs:ignore Magento2.Functions.DiscouragedFunction
         $desc = html_entity_decode((string)$desc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // phpcs:ignore Magento2.Functions.DiscouragedFunction
         $desc = html_entity_decode($desc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
         $desc = preg_replace('/<br\s*\/?>/i', "\n", $desc);
         $desc = str_replace(['</p>', '</div>'], "\n\n", $desc);
         $desc = strip_tags($desc);
         $desc = preg_replace("/\n\n+/", "\n\n", $desc);
+
         return trim($desc);
     }
 
+    /**
+     * Extracts the mapped Etsy Taxonomy ID from the product's categories.
+     *
+     * @param Product $product
+     * @return int|null
+     */
     private function getEtsyTaxonomyId(Product $product)
     {
         $categoryIds = $product->getCategoryIds();
@@ -116,7 +187,7 @@ class PayloadBuilder
             $category = $this->categoryRepository->get($categoryId);
             $taxId = $category->getData('etsy_taxonomy_id');
             if (!empty($taxId)) {
-                return $taxId;
+                return (int)$taxId;
             }
         }
         return null;

@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -17,8 +17,18 @@ namespace BluePrint3D\EtsyIntegration\Block\Adminhtml\System\Config;
 use Magento\Config\Block\System\Config\Form\Field;
 use Magento\Framework\Data\Form\Element\AbstractElement;
 
+/**
+ * Class SyncButton
+ * Renders the custom category taxonomy sync button in System Configuration.
+ */
 class SyncButton extends Field
 {
+    /**
+     * Return custom HTML for the taxonomy sync button
+     *
+     * @param AbstractElement $element
+     * @return string
+     */
     protected function _getElementHtml(AbstractElement $element)
     {
         $url = $this->getUrl('blueprint3d_etsy/taxonomy/sync');

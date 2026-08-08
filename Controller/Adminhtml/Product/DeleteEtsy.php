@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -21,15 +21,43 @@ use BluePrint3D\EtsyIntegration\Service\EtsyClient;
 use BluePrint3D\EtsyIntegration\Service\QueueManager;
 use Magento\Catalog\Model\ResourceModel\Product\Action as ProductAction;
 
+/**
+ * Class DeleteEtsy
+ * Handles the manual deletion of an Etsy listing directly from the Magento Product Grid/Edit page.
+ */
 class DeleteEtsy extends Action
 {
-    const ADMIN_RESOURCE = 'Magento_Catalog::products';
+    public const ADMIN_RESOURCE = 'Magento_Catalog::products';
 
+    /**
+     * @var ProductRepositoryInterface
+     */
     protected $productRepository;
+
+    /**
+     * @var EtsyClient
+     */
     protected $etsyClient;
+
+    /**
+     * @var QueueManager
+     */
     protected $queueManager;
+
+    /**
+     * @var ProductAction
+     */
     protected $productAction;
 
+    /**
+     * DeleteEtsy constructor.
+     *
+     * @param Context $context
+     * @param ProductRepositoryInterface $productRepository
+     * @param EtsyClient $etsyClient
+     * @param QueueManager $queueManager
+     * @param ProductAction $productAction
+     */
     public function __construct(
         Context $context,
         ProductRepositoryInterface $productRepository,
@@ -44,6 +72,11 @@ class DeleteEtsy extends Action
         parent::__construct($context);
     }
 
+    /**
+     * Execute action
+     *
+     * @return \Magento\Framework\Controller\Result\Redirect
+     */
     public function execute()
     {
         $id = $this->getRequest()->getParam('id');
@@ -77,9 +110,13 @@ class DeleteEtsy extends Action
                 // 3. FREE UP FREEMIUM SLOT
                 $this->queueManager->purgeProductEntirely($product->getId());
 
-                $this->messageManager->addSuccessMessage(__('Successfully deleted the listing from Etsy and freed up a sync slot!'));
+                $this->messageManager->addSuccessMessage(
+                    __('Successfully deleted the listing from Etsy and freed up a sync slot!')
+                );
             } else {
-                $this->messageManager->addNoticeMessage(__('This product is not currently linked to an Etsy listing.'));
+                $this->messageManager->addNoticeMessage(
+                    __('This product is not currently linked to an Etsy listing.')
+                );
             }
         } catch (\Exception $e) {
             $this->messageManager->addErrorMessage(__('Failed to delete from Etsy: %1', $e->getMessage()));

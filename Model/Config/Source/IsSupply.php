@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -14,8 +14,19 @@
  */
 namespace BluePrint3D\EtsyIntegration\Model\Config\Source;
 
-class IsSupply implements \Magento\Framework\Data\OptionSourceInterface
+use Magento\Framework\Data\OptionSourceInterface;
+
+/**
+ * Class IsSupply
+ * Option source provider for Etsy supply designation attribute.
+ */
+class IsSupply implements OptionSourceInterface
 {
+    /**
+     * Retrieve options array for supply classification
+     *
+     * @return array
+     */
     public function toOptionArray()
     {
         return [

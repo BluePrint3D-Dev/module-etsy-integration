@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -16,8 +16,17 @@ namespace BluePrint3D\EtsyIntegration\Model\Config\Source;
 
 use Magento\Framework\Data\OptionSourceInterface;
 
+/**
+ * Class SyncMode
+ * Option source provider for product synchronization execution mode (Real-Time vs Cron).
+ */
 class SyncMode implements OptionSourceInterface
 {
+    /**
+     * Retrieve options array for synchronization execution modes
+     *
+     * @return array
+     */
     public function toOptionArray()
     {
         return [

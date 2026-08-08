@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -19,12 +19,30 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use BluePrint3D\EtsyIntegration\Service\EtsyClient;
 use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\Console\Cli;
 
+/**
+ * Class SyncTaxonomy
+ * CLI command to sync and flatten the Etsy taxonomy category tree into the database.
+ */
 class SyncTaxonomy extends Command
 {
+    /**
+     * @var EtsyClient
+     */
     protected $etsyClient;
+
+    /**
+     * @var ResourceConnection
+     */
     protected $resourceConnection;
 
+    /**
+     * SyncTaxonomy constructor.
+     *
+     * @param EtsyClient $etsyClient
+     * @param ResourceConnection $resourceConnection
+     */
     public function __construct(
         EtsyClient $etsyClient,
         ResourceConnection $resourceConnection
@@ -34,12 +52,24 @@ class SyncTaxonomy extends Command
         parent::__construct();
     }
 
+    /**
+     * Configure CLI command name and description.
+     *
+     * @return void
+     */
     protected function configure()
     {
         $this->setName('blueprint3d:etsy:sync-taxonomy')
             ->setDescription('Downloads and caches the Etsy category taxonomy tree');
     }
 
+    /**
+     * Execute CLI command logic.
+     *
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @return int
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $output->writeln('<info>Requesting Taxonomy Tree from Etsy...</info>');
@@ -49,7 +79,8 @@ class SyncTaxonomy extends Command
             $response = $this->etsyClient->request('seller-taxonomy/nodes', 'GET');
 
             if (empty($response['results'])) {
-                throw new \Exception("No taxonomy data returned from Etsy.");
+                $output->writeln('<error>Error: No taxonomy data returned from Etsy.</error>');
+                return Cli::RETURN_FAILURE;
             }
 
             $output->writeln('<info>Parsing nested tree...</info>');
@@ -70,18 +101,25 @@ class SyncTaxonomy extends Command
 
             $output->writeln("<info>SUCCESS! Taxonomy sync complete.</info>");
 
-            return \Magento\Framework\Console\Cli::RETURN_SUCCESS;
+            return Cli::RETURN_SUCCESS;
 
         } catch (\Exception $e) {
             $output->writeln("<error>Error: " . $e->getMessage() . "</error>");
-            return \Magento\Framework\Console\Cli::RETURN_FAILURE;
+            return Cli::RETURN_FAILURE;
         }
     }
 
     /**
      * Recursively flattens the Etsy category tree and builds the breadcrumb path.
+     *
+     * @param array $nodes
+     * @param int|string|null $parentId
+     * @param string $parentPath
+     * @param int $level
+     * @param array $result
+     * @return void
      */
-    private function parseNodes($nodes, $parentId, $parentPath, $level, &$result)
+    private function parseNodes(array $nodes, $parentId, string $parentPath, int $level, array &$result): void
     {
         foreach ($nodes as $node) {
             // Build the breadcrumb (e.g., "Art & Collectibles > Prints > Digital Prints")

@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -17,15 +17,32 @@ namespace BluePrint3D\EtsyIntegration\Model\Config\Source;
 use Magento\Eav\Model\Entity\Attribute\Source\AbstractSource;
 use BluePrint3D\EtsyIntegration\Model\ResourceModel\Taxonomy\CollectionFactory;
 
+/**
+ * Class EtsyTaxonomy
+ * Source model providing Etsy taxonomy categories for category attribute select fields.
+ */
 class EtsyTaxonomy extends AbstractSource
 {
+    /**
+     * @var CollectionFactory
+     */
     protected $collectionFactory;
 
+    /**
+     * EtsyTaxonomy constructor.
+     *
+     * @param CollectionFactory $collectionFactory
+     */
     public function __construct(CollectionFactory $collectionFactory)
     {
         $this->collectionFactory = $collectionFactory;
     }
 
+    /**
+     * Retrieve all taxonomy options for EAV attribute mapping
+     *
+     * @return array
+     */
     public function getAllOptions()
     {
         if ($this->_options === null) {

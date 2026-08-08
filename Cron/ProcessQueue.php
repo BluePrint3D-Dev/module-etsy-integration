@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -19,13 +19,40 @@ use BluePrint3D\EtsyIntegration\Service\ProductSync;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Class ProcessQueue
+ * Cron task for processing queued Etsy synchronization items in batches.
+ */
 class ProcessQueue
 {
+    /**
+     * @var QueueManager
+     */
     protected $queueManager;
+
+    /**
+     * @var ProductSync
+     */
     protected $productSync;
+
+    /**
+     * @var ProductRepositoryInterface
+     */
     protected $productRepository;
+
+    /**
+     * @var LoggerInterface
+     */
     protected $logger;
 
+    /**
+     * ProcessQueue constructor.
+     *
+     * @param QueueManager $queueManager
+     * @param ProductSync $productSync
+     * @param ProductRepositoryInterface $productRepository
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         QueueManager $queueManager,
         ProductSync $productSync,
@@ -38,6 +65,11 @@ class ProcessQueue
         $this->logger = $logger;
     }
 
+    /**
+     * Process pending queue items in background batch.
+     *
+     * @return void
+     */
     public function execute()
     {
         // Grab up to 5 pending items from the waiting room
@@ -57,7 +89,7 @@ class ProcessQueue
                 // Fire the exact same sync engine we used for real-time
                 $this->productSync->syncRealTime($product);
 
-                // If successful, mark status as complete to enforce the 20 lifetime product limit
+                // If successful, mark status as complete to enforce the lifetime product limit
                 $this->queueManager->updateStatus($item['queue_id'], 'complete');
 
             } catch (\Exception $e) {

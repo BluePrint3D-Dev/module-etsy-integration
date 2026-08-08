@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -15,13 +15,31 @@
 namespace BluePrint3D\EtsyIntegration\Service;
 
 use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\Exception\LocalizedException;
 use BluePrint3D\EtsyIntegration\Service\EtsyClient;
 
+/**
+ * Class TaxonomySync
+ * Handles fetching, flattening, and database persistence of the Etsy seller taxonomy tree.
+ */
 class TaxonomySync
 {
+    /**
+     * @var EtsyClient
+     */
     protected $etsyClient;
+
+    /**
+     * @var ResourceConnection
+     */
     protected $resourceConnection;
 
+    /**
+     * TaxonomySync constructor.
+     *
+     * @param EtsyClient $etsyClient
+     * @param ResourceConnection $resourceConnection
+     */
     public function __construct(
         EtsyClient $etsyClient,
         ResourceConnection $resourceConnection
@@ -30,12 +48,18 @@ class TaxonomySync
         $this->resourceConnection = $resourceConnection;
     }
 
-    public function execute()
+    /**
+     * Download taxonomy tree from Etsy and perform bulk database upsert
+     *
+     * @return int Total number of categories synced
+     * @throws LocalizedException
+     */
+    public function execute(): int
     {
         $response = $this->etsyClient->request('seller-taxonomy/nodes', 'GET');
 
         if (empty($response['results'])) {
-            throw new \Exception("No taxonomy data returned from Etsy.");
+            throw new LocalizedException(__("No taxonomy data returned from Etsy."));
         }
 
         $flattenedData = [];
@@ -49,7 +73,17 @@ class TaxonomySync
         return count($flattenedData);
     }
 
-    private function parseNodes($nodes, $parentId, $parentPath, $level, &$result)
+    /**
+     * Recursively flatten category tree nodes into indexed DB rows
+     *
+     * @param array $nodes
+     * @param int|string|null $parentId
+     * @param string $parentPath
+     * @param int $level
+     * @param array $result
+     * @return void
+     */
+    private function parseNodes(array $nodes, $parentId, string $parentPath, int $level, array &$result): void
     {
         foreach ($nodes as $node) {
             $currentPath = $parentPath ? $parentPath . ' > ' . $node['name'] : $node['name'];
