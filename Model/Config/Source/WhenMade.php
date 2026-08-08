@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -16,8 +16,17 @@ namespace BluePrint3D\EtsyIntegration\Model\Config\Source;
 
 use Magento\Eav\Model\Entity\Attribute\Source\AbstractSource;
 
+/**
+ * Class WhenMade
+ * Source model providing options for "When was it made?" Etsy product attribute.
+ */
 class WhenMade extends AbstractSource
 {
+    /**
+     * Retrieve all options for "When was it made" attribute
+     *
+     * @return array
+     */
     public function getAllOptions()
     {
         if ($this->_options === null) {

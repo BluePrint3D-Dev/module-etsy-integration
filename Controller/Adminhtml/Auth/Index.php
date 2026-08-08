@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -17,15 +17,30 @@ namespace BluePrint3D\EtsyIntegration\Controller\Adminhtml\Auth;
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
 use Magento\Framework\App\Config\ScopeConfigInterface;
-use Magento\Framework\App\Action\HttpGetActionInterface; // Added for M2.4+ Strict Routing
+use Magento\Framework\App\Action\HttpGetActionInterface;
 
+/**
+ * Class Index
+ * Handles initiation of the OAuth PKCE flow to connect Magento to Etsy.
+ */
 class Index extends Action implements HttpGetActionInterface
 {
-    // Temporarily set to 'all' to ensure no ACL permission block is happening
-    const ADMIN_RESOURCE = 'Magento_Backend::all';
+    /**
+     * ACL resource
+     */
+    public const ADMIN_RESOURCE = 'Magento_Backend::all';
 
+    /**
+     * @var ScopeConfigInterface
+     */
     protected $scopeConfig;
 
+    /**
+     * Index constructor.
+     *
+     * @param Context $context
+     * @param ScopeConfigInterface $scopeConfig
+     */
     public function __construct(
         Context $context,
         ScopeConfigInterface $scopeConfig
@@ -34,6 +49,11 @@ class Index extends Action implements HttpGetActionInterface
         $this->scopeConfig = $scopeConfig;
     }
 
+    /**
+     * Execute action to build and redirect to Etsy OAuth authorization URL
+     *
+     * @return \Magento\Framework\Controller\Result\Redirect
+     */
     public function execute()
     {
         $appKey = $this->scopeConfig->getValue('etsy_integration/api/keystring');
@@ -75,11 +95,22 @@ class Index extends Action implements HttpGetActionInterface
         return $resultRedirect;
     }
 
+    /**
+     * Generate PKCE Code Verifier
+     *
+     * @return string
+     */
     private function generateCodeVerifier()
     {
         return bin2hex(random_bytes(32));
     }
 
+    /**
+     * Generate PKCE Code Challenge from Verifier
+     *
+     * @param string $verifier
+     * @return string
+     */
     private function generateCodeChallenge($verifier)
     {
         $hash = hash('sha256', $verifier, true);
@@ -88,6 +119,8 @@ class Index extends Action implements HttpGetActionInterface
 
     /**
      * Bulletproof ACL bypass for debugging
+     *
+     * @return bool
      */
     protected function _isAllowed()
     {

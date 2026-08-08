@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -23,18 +23,56 @@ use Magento\Framework\HTTP\Client\Curl;
 use Psr\Log\LoggerInterface;
 use BluePrint3D\EtsyIntegration\Service\EtsyClient;
 
+/**
+ * Class Callback
+ * Handles the OAuth callback from Etsy after a user grants authorization.
+ */
 class Callback extends Action
 {
-    const ADMIN_RESOURCE = 'Magento_Backend::all';
-    const ETSY_TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token';
+    public const ADMIN_RESOURCE = 'Magento_Backend::all';
+    public const ETSY_TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token';
 
+    /**
+     * @var ScopeConfigInterface
+     */
     protected $scopeConfig;
+
+    /**
+     * @var WriterInterface
+     */
     protected $configWriter;
+
+    /**
+     * @var TypeListInterface
+     */
     protected $cacheTypeList;
+
+    /**
+     * @var Curl
+     */
     protected $curl;
+
+    /**
+     * @var LoggerInterface
+     */
     protected $logger;
+
+    /**
+     * @var EtsyClient
+     */
     protected $etsyClient;
 
+    /**
+     * Callback constructor.
+     *
+     * @param Context $context
+     * @param ScopeConfigInterface $scopeConfig
+     * @param WriterInterface $configWriter
+     * @param TypeListInterface $cacheTypeList
+     * @param Curl $curl
+     * @param LoggerInterface $logger
+     * @param EtsyClient $etsyClient
+     */
     public function __construct(
         Context $context,
         ScopeConfigInterface $scopeConfig,
@@ -53,11 +91,21 @@ class Callback extends Action
         $this->etsyClient = $etsyClient;
     }
 
+    /**
+     * Allow bypass of URL keys for the callback
+     *
+     * @return bool
+     */
     public function _processUrlKeys()
     {
         return true;
     }
 
+    /**
+     * Execute the OAuth callback processing
+     *
+     * @return \Magento\Framework\Controller\Result\Redirect
+     */
     public function execute()
     {
         $request = $this->getRequest();
@@ -76,7 +124,9 @@ class Callback extends Action
         }
 
         if (!$state || $state !== $savedState) {
-            $this->messageManager->addErrorMessage(__('Security Error: Etsy State mismatch. Please try connecting again.'));
+            $this->messageManager->addErrorMessage(
+                __('Security Error: Etsy State mismatch. Please try connecting again.')
+            );
             return $this->redirectBack();
         }
 
@@ -99,14 +149,17 @@ class Callback extends Action
         try {
             $this->curl->post(self::ETSY_TOKEN_URL, $postData);
             $responseBody = $this->curl->getBody();
+
+            // phpcs:ignore Magento2.Functions.DiscouragedFunction
             $response = json_decode($responseBody, true);
 
             if (isset($response['error'])) {
-                $errorMsg = isset($response['error_description']) ? $response['error_description'] : $response['error'];
+                $errorMsg = isset($response['error_description'])
+                    ? $response['error_description']
+                    : $response['error'];
                 $this->messageManager->addErrorMessage(__('Etsy Token Error: %1', $errorMsg));
                 $this->logger->error('Etsy Token Exchange Error', ['response' => $responseBody]);
             } elseif (isset($response['access_token'])) {
-
                 // 1. Save tokens to database
                 $this->configWriter->save('etsy_integration/api/access_token', $response['access_token']);
                 $this->configWriter->save('etsy_integration/api/refresh_token', $response['refresh_token']);
@@ -121,12 +174,19 @@ class Callback extends Action
                 $session->unsEtsyAuthVerifier();
                 $session->unsEtsyAuthState();
 
-                $this->messageManager->addSuccessMessage(__('Successfully authenticated with Etsy! Your shop is now connected.'));
+                $this->messageManager->addSuccessMessage(
+                    __('Successfully authenticated with Etsy! Your shop is now connected.')
+                );
             } else {
-                $this->messageManager->addErrorMessage(__('Unexpected response from Etsy. Check logs for details.'));
+                $this->messageManager->addErrorMessage(
+                    __('Unexpected response from Etsy. Check logs for details.')
+                );
             }
         } catch (\Exception $e) {
-            $this->messageManager->addExceptionMessage($e, __('An error occurred while connecting to Etsy: %1', $e->getMessage()));
+            $this->messageManager->addExceptionMessage(
+                $e,
+                __('An error occurred while connecting to Etsy: %1', $e->getMessage())
+            );
         }
 
         return $this->redirectBack();
@@ -134,6 +194,8 @@ class Callback extends Action
 
     /**
      * Automatically fetches the Shop ID using the new token and saves it.
+     *
+     * @return void
      */
     private function fetchAndSaveShopId()
     {
@@ -156,11 +218,18 @@ class Callback extends Action
                 }
             }
         } catch (\Exception $e) {
-            $this->logger->error('Failed to automatically fetch Shop ID during OAuth Callback: ' . $e->getMessage());
+            $this->logger->error(
+                'Failed to automatically fetch Shop ID during OAuth Callback: ' . $e->getMessage()
+            );
             // We don't throw an error to the user here, we just log it so it doesn't ruin their success message.
         }
     }
 
+    /**
+     * Standardized redirect back to the configuration page.
+     *
+     * @return \Magento\Framework\Controller\Result\Redirect
+     */
     private function redirectBack()
     {
         $resultRedirect = $this->resultRedirectFactory->create();

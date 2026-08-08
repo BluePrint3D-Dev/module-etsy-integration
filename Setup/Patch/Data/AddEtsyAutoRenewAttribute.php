@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -21,11 +21,28 @@ use Magento\Framework\Setup\Patch\DataPatchInterface;
 use Magento\Catalog\Model\Product;
 use Magento\Eav\Model\Entity\Attribute\ScopedAttributeInterface;
 
+/**
+ * Class AddEtsyAutoRenewAttribute
+ * Data patch for creating the etsy_auto_renew product attribute.
+ */
 class AddEtsyAutoRenewAttribute implements DataPatchInterface
 {
+    /**
+     * @var ModuleDataSetupInterface
+     */
     private $moduleDataSetup;
+
+    /**
+     * @var EavSetupFactory
+     */
     private $eavSetupFactory;
 
+    /**
+     * AddEtsyAutoRenewAttribute constructor.
+     *
+     * @param ModuleDataSetupInterface $moduleDataSetup
+     * @param EavSetupFactory $eavSetupFactory
+     */
     public function __construct(
         ModuleDataSetupInterface $moduleDataSetup,
         EavSetupFactory $eavSetupFactory
@@ -34,6 +51,11 @@ class AddEtsyAutoRenewAttribute implements DataPatchInterface
         $this->eavSetupFactory = $eavSetupFactory;
     }
 
+    /**
+     * Apply setup patch
+     *
+     * @return $this
+     */
     public function apply()
     {
         $this->moduleDataSetup->getConnection()->startSetup();
@@ -51,8 +73,27 @@ class AddEtsyAutoRenewAttribute implements DataPatchInterface
         ]);
 
         $this->moduleDataSetup->getConnection()->endSetup();
+
+        return $this;
     }
 
-    public static function getDependencies() { return []; }
-    public function getAliases() { return []; }
+    /**
+     * Get array of patches this patch depends on
+     *
+     * @return array
+     */
+    public static function getDependencies()
+    {
+        return [];
+    }
+
+    /**
+     * Get aliases
+     *
+     * @return array
+     */
+    public function getAliases()
+    {
+        return [];
+    }
 }

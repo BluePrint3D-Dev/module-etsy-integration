@@ -3,7 +3,14 @@
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
  *
  * Commercial Software License (EULA)
- * ...
+ * This software is licensed, not sold. Unauthorized reproduction, distribution,
+ * reverse engineering, or sublicensing of this source code, modified or
+ * unmodified, without an active license agreement from BluePrint3D Ltd
+ * is strictly prohibited.
+ *
+ * @author    BluePrint3D Ltd <support@blueprint3d.dev>
+ * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
+ * @license   Commercial Proprietary EULA (See LICENSE.txt)
  */
 namespace BluePrint3D\EtsyIntegration\Observer;
 
@@ -16,15 +23,52 @@ use Magento\Framework\Message\ManagerInterface;
 use Magento\Catalog\Model\ResourceModel\Product\Action as ProductAction;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Class ProductSaveObserver
+ * Intercepts product saves to trigger or queue Etsy synchronization.
+ */
 class ProductSaveObserver implements ObserverInterface
 {
+    /**
+     * @var ScopeConfigInterface
+     */
     protected $scopeConfig;
+
+    /**
+     * @var ProductSync
+     */
     protected $productSync;
+
+    /**
+     * @var QueueManager
+     */
     protected $queueManager;
+
+    /**
+     * @var ManagerInterface
+     */
     protected $messageManager;
+
+    /**
+     * @var ProductAction
+     */
     protected $productAction;
+
+    /**
+     * @var LoggerInterface
+     */
     protected $logger;
 
+    /**
+     * ProductSaveObserver constructor.
+     *
+     * @param ScopeConfigInterface $scopeConfig
+     * @param ProductSync $productSync
+     * @param QueueManager $queueManager
+     * @param ManagerInterface $messageManager
+     * @param ProductAction $productAction
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         ScopeConfigInterface $scopeConfig,
         ProductSync $productSync,
@@ -41,6 +85,12 @@ class ProductSaveObserver implements ObserverInterface
         $this->logger = $logger;
     }
 
+    /**
+     * Executes the observer on catalog_product_save_after
+     *
+     * @param Observer $observer
+     * @return void
+     */
     public function execute(Observer $observer)
     {
         $product = $observer->getEvent()->getProduct();
@@ -69,7 +119,9 @@ class ProductSaveObserver implements ObserverInterface
         if ($syncMode === 'realtime') {
             try {
                 $listingId = $this->productSync->syncRealTime($product);
-                $this->messageManager->addSuccessMessage(__("Successfully created/updated Draft Listing on Etsy! (ID: %1)", $listingId));
+                $this->messageManager->addSuccessMessage(
+                    __("Successfully created/updated Draft Listing on Etsy! (ID: %1)", $listingId)
+                );
             } catch (\Exception $e) {
                 $this->messageManager->addErrorMessage(__("Etsy Sync Error: %1", $e->getMessage()));
             }

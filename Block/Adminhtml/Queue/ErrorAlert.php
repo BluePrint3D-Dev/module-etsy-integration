@@ -18,11 +18,30 @@ use Magento\Backend\Block\Template;
 use Magento\Framework\App\ResourceConnection;
 use BluePrint3D\EtsyIntegration\Service\QueueManager;
 
+/**
+ * Class ErrorAlert
+ * Block for rendering queue errors and subscription limit alerts in the admin panel.
+ */
 class ErrorAlert extends Template
 {
+    /**
+     * @var ResourceConnection
+     */
     protected $resourceConnection;
+
+    /**
+     * @var QueueManager
+     */
     protected $queueManager;
 
+    /**
+     * ErrorAlert constructor.
+     *
+     * @param Template\Context $context
+     * @param ResourceConnection $resourceConnection
+     * @param QueueManager $queueManager
+     * @param array $data
+     */
     public function __construct(
         Template\Context $context,
         ResourceConnection $resourceConnection,
@@ -36,6 +55,8 @@ class ErrorAlert extends Template
 
     /**
      * Get the total count of products that failed to sync
+     *
+     * @return int
      */
     public function getErrorCount(): int
     {
@@ -55,6 +76,8 @@ class ErrorAlert extends Template
 
     /**
      * Check if the merchant has hit their freemium limit
+     *
+     * @return bool
      */
     public function isLimitReached(): bool
     {
@@ -79,7 +102,6 @@ class ErrorAlert extends Template
                 return [];
             }
 
-            // Updated column to 'message' to match your database schema
             $select = $connection->select()
                 ->from(['q' => $queueTable], ['product_id', 'message'])
                 ->joinLeft(
@@ -93,10 +115,13 @@ class ErrorAlert extends Template
             $results = $connection->fetchAll($select);
 
             foreach ($results as $row) {
-                $sku = !empty($row['sku']) ? $row['sku'] : 'Deleted Product (ID: ' . $row['product_id'] . ')';
+                $sku = !empty($row['sku'])
+                    ? $row['sku']
+                    : 'Deleted Product (ID: ' . $row['product_id'] . ')';
 
-                // Extracting from the correct 'message' column now
-                $errorMessage = !empty($row['message']) ? $row['message'] : 'Unknown API Error';
+                $errorMessage = !empty($row['message'])
+                    ? $row['message']
+                    : 'Unknown API Error';
 
                 $errors[] = [
                     'sku' => $sku,

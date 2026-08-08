@@ -1,7 +1,7 @@
 <?php
 /**
  * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- * 
+ *
  * Commercial Software License (EULA)
  * This software is licensed, not sold. Unauthorized reproduction, distribution,
  * reverse engineering, or sublicensing of this source code, modified or
@@ -16,8 +16,17 @@ namespace BluePrint3D\EtsyIntegration\Model;
 
 use Magento\Framework\Model\AbstractModel;
 
+/**
+ * Class Taxonomy
+ * Model representing an Etsy category taxonomy entry.
+ */
 class Taxonomy extends AbstractModel
 {
+    /**
+     * Initialize taxonomy model resource
+     *
+     * @return void
+     */
     protected function _construct()
     {
         $this->_init(\BluePrint3D\EtsyIntegration\Model\ResourceModel\Taxonomy::class);

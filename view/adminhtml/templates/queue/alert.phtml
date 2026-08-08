@@ -10,23 +10,40 @@
  */
 
 /** @var \BluePrint3D\EtsyIntegration\Block\Adminhtml\Queue\ErrorAlert $block */
-$errorCount = $block->getErrorCount();
-$isLimitReached = $block->isLimitReached();
+/** @var \Magento\Framework\Escaper $escaper */
+$errorCount = (int)$block->getErrorCount();
+$isLimitReached = (bool)$block->isLimitReached();
 ?>
 
     <!-- BLUEPRINT3D FREEMIUM BANNER -->
 <?php if ($isLimitReached): ?>
-    <div style="background: linear-gradient(90deg, #fdfaf6 0%, #fff4e5 100%); border-left: 6px solid #ff9900; padding: 16px 24px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; border-radius: 2px;">
+    <div style="background: linear-gradient(90deg, #fdfaf6 0%, #fff4e5 100%);
+                border-left: 6px solid #ff9900; padding: 16px 24px; margin-bottom: 20px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; align-items: center;
+                justify-content: space-between; font-family: 'Open Sans', sans-serif; border-radius: 2px;">
         <div style="display: flex; align-items: center;">
             <div style="font-size: 28px; margin-right: 18px; line-height: 1;">👑</div>
             <div>
-                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">BluePrint3D: Etsy Sync Limit Reached</h4>
-                <p style="margin: 0; color: #555; font-size: 14px; line-height: 1.4;">You are currently utilizing all of your available free sync slots. Delete a listing to free up space, or level up to sync your entire catalogue.</p>
+                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 16px; font-weight: 700;
+                           text-transform: uppercase; letter-spacing: 0.5px;">
+                    <?= $escaper->escapeHtml(__('BluePrint3D: Etsy Sync Limit Reached')) ?>
+                </h4>
+                <p style="margin: 0; color: #555; font-size: 14px; line-height: 1.4;">
+                    <?= $escaper->escapeHtml(
+                        __('You are utilizing all of your available free sync slots. ' .
+                                    'Delete a listing to free up space, or level up to sync your entire catalogue.')
+                    ) ?>
+                </p>
             </div>
         </div>
         <div style="margin-left: 20px; flex-shrink: 0;">
-            <a href="https://blueprint3d.dev/#ES-Pro" target="_blank" style="background-color: #ff9900; color: #fff; padding: 12px 24px; text-decoration: none; font-weight: 600; border-radius: 4px; display: inline-block; text-transform: uppercase; font-size: 13px; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(255,153,0,0.3); transition: background-color 0.2s ease;">
-                Upgrade to Pro
+            <a href="https://blueprint3d.dev/#ES-Pro" target="_blank"
+               style="background-color: #ff9900; color: #fff; padding: 12px 24px;
+                      text-decoration: none; font-weight: 600; border-radius: 4px;
+                      display: inline-block; text-transform: uppercase; font-size: 13px;
+                      letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(255,153,0,0.3);
+                      transition: background-color 0.2s ease;">
+                <?= $escaper->escapeHtml(__('Upgrade to Pro')) ?>
             </a>
         </div>
     </div>
@@ -34,19 +51,31 @@ $isLimitReached = $block->isLimitReached();
 
     <!-- BLUEPRINT3D ERROR BANNER -->
 <?php if ($errorCount > 0): ?>
-    <?php $errorDetails = $block->getErrorDetails(); // We will add this method to your Block class next! ?>
-    <div style="background: linear-gradient(90deg, #fff5f5 0%, #ffebeb 100%); border-left: 6px solid #e22626; padding: 16px 24px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; font-family: 'Open Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif; border-radius: 2px;">
+    <?php $errorDetails = $block->getErrorDetails(); ?>
+    <div style="background: linear-gradient(90deg, #fff5f5 0%, #ffebeb 100%);
+                border-left: 6px solid #e22626; padding: 16px 24px; margin-bottom: 20px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex;
+                font-family: 'Open Sans', sans-serif; border-radius: 2px;">
         <div style="font-size: 26px; margin-right: 18px; line-height: 1; padding-top: 4px;">⚠️</div>
         <div>
-            <h4 style="margin: 0 0 6px 0; color: #cc0000; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Etsy Sync Error Detected</h4>
-            <p style="margin: 0 0 10px 0; color: #555; font-size: 14px; line-height: 1.4;"><strong><?= $errorCount ?> product(s)</strong> failed to sync to Etsy. Please review the errors below:</p>
+            <h4 style="margin: 0 0 6px 0; color: #cc0000; font-size: 16px; font-weight: 700;
+                       text-transform: uppercase; letter-spacing: 0.5px;">
+                <?= $escaper->escapeHtml(__('Etsy Sync Error Detected')) ?>
+            </h4>
+            <p style="margin: 0 0 10px 0; color: #555; font-size: 14px; line-height: 1.4;">
+                <strong><?= (int)$errorCount ?> <?= $escaper->escapeHtml(__('product(s)')) ?></strong>
+                <?= $escaper->escapeHtml(__('failed to sync to Etsy. Please review the errors below:')) ?>
+            </p>
 
             <?php if (!empty($errorDetails)): ?>
-                <ul style="margin: 0; padding: 0 0 0 18px; color: #cc0000; font-size: 13px; font-weight: 600; max-height: 150px; overflow-y: auto;">
+                <ul style="margin: 0; padding: 0 0 0 18px; color: #cc0000; font-size: 13px;
+                           font-weight: 600; max-height: 150px; overflow-y: auto;">
                     <?php foreach ($errorDetails as $error): ?>
                         <li style="margin-bottom: 4px;">
-                            <strong><?= $block->escapeHtml($error['sku']) ?>:</strong>
-                            <span style="font-weight: 400; color: #333;"><?= $block->escapeHtml($error['message']) ?></span>
+                            <strong><?= $escaper->escapeHtml($error['sku']) ?>:</strong>
+                            <span style="font-weight: 400; color: #333;">
+                                <?= $escaper->escapeHtml($error['message']) ?>
+                            </span>
                         </li>
                     <?php endforeach; ?>
                 </ul>

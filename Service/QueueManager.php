@@ -16,20 +16,42 @@ namespace BluePrint3D\EtsyIntegration\Service;
 
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\Exception\LocalizedException;
 use Psr\Log\LoggerInterface;
 
+/**
+ * Class QueueManager
+ * Manages background queue persistence and freemium synchronization limit enforcement.
+ */
 class QueueManager
 {
     /**
      * Maximum allowed products for the Free / Freemium tier.
-     * Change this single constant to switch between dev testing (5) and production (20).
      */
     private const FREE_TIER_PRODUCT_LIMIT = 5;
 
+    /**
+     * @var ResourceConnection
+     */
     protected $resourceConnection;
+
+    /**
+     * @var ScopeConfigInterface
+     */
     protected $scopeConfig;
+
+    /**
+     * @var LoggerInterface
+     */
     protected $logger;
 
+    /**
+     * QueueManager constructor.
+     *
+     * @param ResourceConnection $resourceConnection
+     * @param ScopeConfigInterface $scopeConfig
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         ResourceConnection $resourceConnection,
         ScopeConfigInterface $scopeConfig,
@@ -42,6 +64,10 @@ class QueueManager
 
     /**
      * Add a product to the Etsy background sync queue
+     *
+     * @param int $productId
+     * @return bool
+     * @throws LocalizedException
      */
     public function addToQueue(int $productId): bool
     {
@@ -50,16 +76,20 @@ class QueueManager
 
         // 1. CHECK FREEMIUM LIMIT
         if (!$this->canQueueProduct($productId)) {
-            $handlingMode = $this->scopeConfig->getValue('etsy_integration/sync_settings/unsupported_options') ?: 'strict';
+            $handlingMode = $this->scopeConfig->getValue(
+                'etsy_integration/sync_settings/unsupported_options'
+            ) ?: 'strict';
+
             $message = sprintf(
-                "Freemium limit reached (%d products). Upgrade to Etsy Integration Pro at blueprint3d.dev for unlimited product syncs!",
+                "Freemium limit reached (%d products). " .
+                "Upgrade to Etsy Integration Pro at blueprint3d.dev for unlimited product syncs!",
                 self::FREE_TIER_PRODUCT_LIMIT
             );
 
             $this->logger->warning("ETSY SYNC LIMIT REACHED: Product ID {$productId} skipped.");
 
             if ($handlingMode === 'strict') {
-                throw new \Exception($message);
+                throw new LocalizedException(__($message));
             }
 
             return false;
@@ -102,6 +132,9 @@ class QueueManager
 
     /**
      * Verifies if the product can be queued based on unique synced products count
+     *
+     * @param int $productId
+     * @return bool
      */
     public function canQueueProduct(int $productId): bool
     {
