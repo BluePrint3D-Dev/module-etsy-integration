@@ -212,7 +212,7 @@ class EtsyClient
     }
 
     /**
-     * Send an image file to the Etsy API via multipart/form-data.
+     * Send an image file to the Etsy API via native multipart/form-data.
      *
      * @param string $endpoint
      * @param string $filePath
@@ -230,30 +230,44 @@ class EtsyClient
             throw new LocalizedException(__('Etsy API credentials missing.'));
         }
 
+        if (!file_exists($filePath)) {
+            throw new LocalizedException(__('Image file does not exist at path: %1', $filePath));
+        }
+
         $sharedSecret = $this->encryptor->decrypt($encryptedSecret);
         $url = self::API_BASE_URL . ltrim($endpoint, '/');
 
-        /** @var \Magento\Framework\HTTP\Client\Curl $curl */
-        $curl = $this->curlFactory->create();
-
-        // Exclude Content-Type so cURL generates the multipart boundary automatically
-        $curl->setHeaders([
-            'x-api-key' => $appKey . ':' . $sharedSecret,
-            'Authorization' => 'Bearer ' . $accessToken
-        ]);
-
+        // Construct raw CURLFile payload bypassing Magento's http_build_query wrapper
+        $mimeType = mime_content_type($filePath) ?: 'image/jpeg';
         $postFields = [
-            'image' => new \CURLFile($filePath)
+            'image' => new \CURLFile($filePath, $mimeType, basename($filePath))
         ];
 
         if ($rank !== null) {
             $postFields['rank'] = (int)$rank;
         }
 
-        $curl->post($url, $postFields);
+        // Native cURL execution prevents array-to-string parameter flattening
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $postFields,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => [
+                'x-api-key: ' . $appKey . ':' . $sharedSecret,
+                'Authorization: Bearer ' . $accessToken
+            ]
+        ]);
 
-        $responseBody = $curl->getBody();
-        $statusCode = $curl->getStatus();
+        $responseBody = curl_exec($ch);
+        $statusCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($curlError) {
+            throw new LocalizedException(__('cURL Image Upload Error: %1', $curlError));
+        }
 
         if ($statusCode < 200 || $statusCode >= 300) {
             $this->logger->error(

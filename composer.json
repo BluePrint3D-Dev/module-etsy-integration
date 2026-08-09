@@ -19,7 +19,7 @@
   "description": "Seamlessly sync your Magento catalog to Etsy with background queue processing.",
 
   "require": {
-    "php": "~8.1.0||~8.2.0||~8.3.0",
+    "php": ">=8.1.0 <8.6.0",
     "magento/framework": "*"
   },
   "autoload": {
