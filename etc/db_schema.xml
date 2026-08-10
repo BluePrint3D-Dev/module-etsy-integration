@@ -65,4 +65,20 @@
         </index>
     </table>
 
+    <!-- Table: Caches Etsy Taxonomy / Category Hierarchy -->
+    <table name="blueprint3d_etsy_taxonomy" resource="default" engine="innodb" comment="Etsy Taxonomy Categories">
+        <column xsi:type="bigint" name="taxonomy_id" padding="20" unsigned="true" nullable="false" comment="Etsy Taxonomy ID"/>
+        <column xsi:type="bigint" name="parent_id" padding="20" unsigned="true" nullable="true" comment="Parent Taxonomy ID"/>
+        <column xsi:type="varchar" name="name" length="255" nullable="false" comment="Category Name"/>
+        <column xsi:type="text" name="path" nullable="true" comment="Full Category Path"/>
+        <column xsi:type="smallint" name="level" padding="5" unsigned="true" nullable="false" default="0" comment="Category Level"/>
+
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="taxonomy_id"/>
+        </constraint>
+        <index referenceId="BLUEPRINT3D_ETSY_TAXONOMY_PARENT_ID" indexType="btree">
+            <column name="parent_id"/>
+        </index>
+    </table>
+
 </schema>
