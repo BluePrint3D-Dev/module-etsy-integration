@@ -289,4 +289,23 @@ class QueueManager
 
         return $count >= self::FREE_TIER_PRODUCT_LIMIT;
     }
+    /**
+     * Delete all errored items from the queue entirely.
+     *
+     * @return int The number of rows deleted
+     */
+    public function clearAllErrors(): int
+    {
+        $connection = $this->resourceConnection->getConnection();
+        $tableName = $connection->getTableName('blueprint3d_etsy_queue');
+
+        $deletedRowCount = $connection->delete(
+            $tableName,
+            ['status = ?' => 'error']
+        );
+
+        $this->logger->info("ETSY QUEUE: Cleared {$deletedRowCount} errored items from the queue.");
+
+        return $deletedRowCount;
+    }
 }

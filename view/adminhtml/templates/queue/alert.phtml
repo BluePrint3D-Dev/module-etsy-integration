@@ -1,85 +1,50 @@
-<?php
-/**
- * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
- *
- * Commercial Software License (EULA)
- * This software is licensed, not sold. Unauthorized reproduction, distribution,
- * reverse engineering, or sublicensing of this source code, modified or
- * unmodified, without an active license agreement from BluePrint3D Ltd
- * is strictly prohibited.
- */
-
-/** @var \BluePrint3D\EtsyIntegration\Block\Adminhtml\Queue\ErrorAlert $block */
-/** @var \Magento\Framework\Escaper $escaper */
-$errorCount = (int)$block->getErrorCount();
-$isLimitReached = (bool)$block->isLimitReached();
-?>
-
-    <!-- BLUEPRINT3D FREEMIUM BANNER -->
-<?php if ($isLimitReached): ?>
-    <div style="background: linear-gradient(90deg, #fdfaf6 0%, #fff4e5 100%);
-                border-left: 6px solid #ff9900; padding: 16px 24px; margin-bottom: 20px;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; align-items: center;
-                justify-content: space-between; font-family: 'Open Sans', sans-serif; border-radius: 2px;">
-        <div style="display: flex; align-items: center;">
-            <div style="font-size: 28px; margin-right: 18px; line-height: 1;">👑</div>
-            <div>
-                <h4 style="margin: 0 0 4px 0; color: #333; font-size: 16px; font-weight: 700;
-                           text-transform: uppercase; letter-spacing: 0.5px;">
-                    <?= $escaper->escapeHtml(__('BluePrint3D: Etsy Sync Limit Reached')) ?>
-                </h4>
-                <p style="margin: 0; color: #555; font-size: 14px; line-height: 1.4;">
-                    <?= $escaper->escapeHtml(
-                        __('You are utilizing all of your available free sync slots. ' .
-                                    'Delete a listing to free up space, or level up to sync your entire catalogue.')
-                    ) ?>
-                </p>
-            </div>
-        </div>
-        <div style="margin-left: 20px; flex-shrink: 0;">
-            <a href="https://blueprint3d.dev/#ES-Pro" target="_blank"
-               style="background-color: #ff9900; color: #fff; padding: 12px 24px;
-                      text-decoration: none; font-weight: 600; border-radius: 4px;
-                      display: inline-block; text-transform: uppercase; font-size: 13px;
-                      letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(255,153,0,0.3);
-                      transition: background-color 0.2s ease;">
-                <?= $escaper->escapeHtml(__('Upgrade to Pro')) ?>
-            </a>
-        </div>
-    </div>
-<?php endif; ?>
-
-    <!-- BLUEPRINT3D ERROR BANNER -->
+<!-- BLUEPRINT3D ERROR BANNER -->
 <?php if ($errorCount > 0): ?>
     <?php $errorDetails = $block->getErrorDetails(); ?>
     <div style="background: linear-gradient(90deg, #fff5f5 0%, #ffebeb 100%);
                 border-left: 6px solid #e22626; padding: 16px 24px; margin-bottom: 20px;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex;
-                font-family: 'Open Sans', sans-serif; border-radius: 2px;">
-        <div style="font-size: 26px; margin-right: 18px; line-height: 1; padding-top: 4px;">⚠️</div>
-        <div>
-            <h4 style="margin: 0 0 6px 0; color: #cc0000; font-size: 16px; font-weight: 700;
-                       text-transform: uppercase; letter-spacing: 0.5px;">
-                <?= $escaper->escapeHtml(__('Etsy Sync Error Detected')) ?>
-            </h4>
-            <p style="margin: 0 0 10px 0; color: #555; font-size: 14px; line-height: 1.4;">
-                <strong><?= (int)$errorCount ?> <?= $escaper->escapeHtml(__('product(s)')) ?></strong>
-                <?= $escaper->escapeHtml(__('failed to sync to Etsy. Please review the errors below:')) ?>
-            </p>
+                box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; align-items: flex-start;
+                justify-content: space-between; font-family: 'Open Sans', sans-serif; border-radius: 2px;">
 
-            <?php if (!empty($errorDetails)): ?>
-                <ul style="margin: 0; padding: 0 0 0 18px; color: #cc0000; font-size: 13px;
-                           font-weight: 600; max-height: 150px; overflow-y: auto;">
-                    <?php foreach ($errorDetails as $error): ?>
-                        <li style="margin-bottom: 4px;">
-                            <strong><?= $escaper->escapeHtml($error['sku']) ?>:</strong>
-                            <span style="font-weight: 400; color: #333;">
-                                <?= $escaper->escapeHtml($error['message']) ?>
-                            </span>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            <?php endif; ?>
+        <div style="display: flex; align-items: flex-start;">
+            <div style="font-size: 26px; margin-right: 18px; line-height: 1; padding-top: 4px;">⚠️</div>
+            <div>
+                <h4 style="margin: 0 0 6px 0; color: #cc0000; font-size: 16px; font-weight: 700;
+                           text-transform: uppercase; letter-spacing: 0.5px;">
+                    <?= $escaper->escapeHtml(__('Etsy Sync Error Detected')) ?>
+                </h4>
+                <p style="margin: 0 0 10px 0; color: #555; font-size: 14px; line-height: 1.4;">
+                    <strong><?= (int)$errorCount ?> <?= $escaper->escapeHtml(__('product(s)')) ?></strong>
+                    <?= $escaper->escapeHtml(__('failed to sync to Etsy. Please review the errors below:')) ?>
+                </p>
+
+                <?php if (!empty($errorDetails)): ?>
+                    <ul style="margin: 0; padding: 0 0 0 18px; color: #cc0000; font-size: 13px;
+                               font-weight: 600; max-height: 150px; overflow-y: auto;">
+                        <?php foreach ($errorDetails as $error): ?>
+                            <li style="margin-bottom: 4px;">
+                                <strong><?= $escaper->escapeHtml($error['sku']) ?>:</strong>
+                                <span style="font-weight: 400; color: #333;">
+                                    <?= $escaper->escapeHtml($error['message']) ?>
+                                </span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
         </div>
+
+        <!-- THE NEW RETRY BUTTON -->
+        <div style="margin-left: 20px; flex-shrink: 0; padding-top: 4px;">
+            <a href="<?= $escaper->escapeUrl($block->getRetryUrl()) ?>"
+               style="background-color: #e22626; color: #fff; padding: 12px 24px;
+                      text-decoration: none; font-weight: 600; border-radius: 4px;
+                      display: inline-block; text-transform: uppercase; font-size: 13px;
+                      letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(226,38,38,0.3);
+                      transition: background-color 0.2s ease;">
+                <?= $escaper->escapeHtml(__('Retry Failed Syncs')) ?>
+            </a>
+        </div>
+
     </div>
 <?php endif; ?>
