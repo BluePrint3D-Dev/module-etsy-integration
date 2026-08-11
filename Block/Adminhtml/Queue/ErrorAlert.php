@@ -137,4 +137,14 @@ class ErrorAlert extends Template
 
         return $errors;
     }
+    /**
+     * Get URL for the retry action controller
+     *
+     * @return string
+     */
+    public function getRetryUrl(): string
+    {
+        // Make sure 'etsy' matches your actual module's router ID in routes.xml
+        return $this->getUrl('etsy/queue/retry');
+    }
 }

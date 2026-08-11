@@ -159,17 +159,40 @@ class PayloadBuilder
      */
     private function formatDescription(Product $product): string
     {
-        $desc = $product->getDescription() ?: $product->getName();
+        $desc = (string)($product->getDescription() ?: $product->getName());
 
-        // phpcs:ignore Magento2.Functions.DiscouragedFunction
-        $desc = html_entity_decode((string)$desc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        // phpcs:ignore Magento2.Functions.DiscouragedFunction
-        $desc = html_entity_decode($desc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // 1. Force decode ALL HTML entities (loops until fully decoded)
+        $previous = '';
+        while ($desc !== $previous) {
+            $previous = $desc;
+            // phpcs:ignore Magento2.Functions.DiscouragedFunction
+            $desc = html_entity_decode($desc, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
 
+        // 2. Nuke <style>, <script>, and PageBuilder Tab Navigation completely
+        $desc = preg_replace('/<style\b[^>]*>(.*?)<\/style>/is', '', $desc);
+        $desc = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $desc);
+        $desc = preg_replace('/<ul\b[^>]*data-element="navigation"[^>]*>(.*?)<\/ul>/is', '', $desc);
+        $desc = preg_replace('/<ul\b[^>]*role="tablist"[^>]*>(.*?)<\/ul>/is', '', $desc);
+
+        // 3. Nuke Magento internal widgets/shortcodes (e.g., {{widget ...}})
+        $desc = preg_replace('/\{\{.*?\}\}/s', '', $desc);
+
+        // 4. Format visual spacing before stripping tags
         $desc = preg_replace('/<br\s*\/?>/i', "\n", $desc);
-        $desc = str_replace(['</p>', '</div>'], "\n\n", $desc);
+        $desc = str_replace(
+            ['</p>', '</div>', '</ul>', '</h1>', '</h2>', '</h3>', '</h4>', '</h5>', '</h6>'],
+            "\n\n",
+            $desc
+        );
+        $desc = str_replace('<li>', "• ", $desc);
+
+        // 5. Strip the actual HTML brackets
         $desc = strip_tags($desc);
+
+        // 6. Clean up ugly whitespace and multi-newlines
         $desc = preg_replace("/\n\n+/", "\n\n", $desc);
+        $desc = preg_replace("/[ \t]+/", " ", $desc); // Condense multiple spaces into one
 
         return trim($desc);
     }

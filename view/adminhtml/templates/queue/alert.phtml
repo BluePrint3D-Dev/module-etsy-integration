@@ -1,4 +1,5 @@
 <!-- BLUEPRINT3D ERROR BANNER -->
+<?php $errorCount = $block->getErrorCount(); ?>
 <?php if ($errorCount > 0): ?>
     <?php $errorDetails = $block->getErrorDetails(); ?>
     <div style="background: linear-gradient(90deg, #fff5f5 0%, #ffebeb 100%);
