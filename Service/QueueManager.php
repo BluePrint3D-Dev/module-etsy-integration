@@ -290,22 +290,26 @@ class QueueManager
         return $count >= self::FREE_TIER_PRODUCT_LIMIT;
     }
     /**
-     * Delete all errored items from the queue entirely.
+     * Reset all errored items back to pending state so the cron can retry them.
      *
-     * @return int The number of rows deleted
+     * @return int The number of rows updated
      */
-    public function clearAllErrors(): int
+    public function requeueAllErrors(): int
     {
         $connection = $this->resourceConnection->getConnection();
         $tableName = $connection->getTableName('blueprint3d_etsy_queue');
 
-        $deletedRowCount = $connection->delete(
+        $updatedRowCount = $connection->update(
             $tableName,
+            [
+                'status' => 'pending',
+                'message' => null
+            ],
             ['status = ?' => 'error']
         );
 
-        $this->logger->info("ETSY QUEUE: Cleared {$deletedRowCount} errored items from the queue.");
+        $this->logger->info("ETSY QUEUE: Re-queued {$updatedRowCount} previously errored items.");
 
-        return $deletedRowCount;
+        return $updatedRowCount;
     }
 }
