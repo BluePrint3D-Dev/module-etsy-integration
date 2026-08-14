@@ -31,7 +31,7 @@ class UpgradeButton extends Field
      */
     protected function _getElementHtml(AbstractElement $element)
     {
-        $url = 'https://blueprint3d.dev/#Etsy-Pro';
+        $url = 'https://www.blueprint3d.dev/modules/etsy-integration-pro';
 
         return sprintf(
             '<button type="button" class="action-secondary" onclick="window.open(\'%s\', \'_blank\')">' .
