@@ -16,6 +16,7 @@ namespace BluePrint3D\EtsyIntegration\Service;
 
 use Magento\Catalog\Model\Product;
 use BluePrint3D\EtsyIntegration\Service\EtsyClient;
+use Magento\CatalogInventory\Api\StockRegistryInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Filesystem;
 use Magento\Framework\App\Filesystem\DirectoryList;
@@ -23,6 +24,7 @@ use Magento\Catalog\Model\ResourceModel\Product\Action as ProductAction;
 use Magento\Framework\Exception\LocalizedException;
 use Psr\Log\LoggerInterface;
 use BluePrint3D\EtsyIntegration\Model\Sync\PayloadBuilder;
+use BluePrint3D\EtsyIntegration\Model\Sync\InventoryPayloadBuilder;
 
 /**
  * Class ProductSync
@@ -66,6 +68,16 @@ class ProductSync
     protected $payloadBuilder;
 
     /**
+     * @var InventoryPayloadBuilder
+     */
+    protected $inventoryPayloadBuilder;
+
+    /**
+     * @var StockRegistryInterface
+     */
+    protected $stockRegistry;
+
+    /**
      * ProductSync constructor.
      *
      * @param EtsyClient $etsyClient
@@ -75,6 +87,8 @@ class ProductSync
      * @param LoggerInterface $logger
      * @param EtsyCustomOptionManager $customOptionManager
      * @param PayloadBuilder $payloadBuilder
+     * @param InventoryPayloadBuilder $inventoryPayloadBuilder
+     * @param StockRegistryInterface $stockRegistry
      */
     public function __construct(
         EtsyClient $etsyClient,
@@ -83,7 +97,9 @@ class ProductSync
         ProductAction $productAction,
         LoggerInterface $logger,
         EtsyCustomOptionManager $customOptionManager,
-        PayloadBuilder $payloadBuilder
+        PayloadBuilder $payloadBuilder,
+        InventoryPayloadBuilder $inventoryPayloadBuilder,
+        StockRegistryInterface $stockRegistry
     ) {
         $this->etsyClient = $etsyClient;
         $this->scopeConfig = $scopeConfig;
@@ -92,6 +108,8 @@ class ProductSync
         $this->logger = $logger;
         $this->customOptionManager = $customOptionManager;
         $this->payloadBuilder = $payloadBuilder;
+        $this->inventoryPayloadBuilder = $inventoryPayloadBuilder;
+        $this->stockRegistry = $stockRegistry;
     }
 
     /**
@@ -172,10 +190,13 @@ class ProductSync
                         ['etsy_listing_id' => $activeListingId],
                         0
                     );
-
-                    // Upload Multiple Images (Etsy Max is 10)
-                    $this->uploadGalleryImages($product, $shopId, $activeListingId);
                 }
+            }
+
+            // 2b. SYNC IMAGES - runs on both create AND update, so Magento image changes
+            // actually reach Etsy instead of only landing at initial listing creation.
+            if ($activeListingId) {
+                $this->syncGalleryImages($product, $shopId, $activeListingId);
             }
 
             // 3. SYNC CUSTOM OPTIONS (Personalizations)
@@ -188,12 +209,114 @@ class ProductSync
                 }
             }
 
+            // 4. SYNC PRICED DROPDOWNS (Variations - the only Etsy mechanism that supports per-value pricing)
+            if ($activeListingId) {
+                $pricedDropdowns = $this->customOptionManager->extractPricedDropdowns($product);
+
+                if (!empty($pricedDropdowns)) {
+                    $basePrice = $this->payloadBuilder->getCalculatedPrice($product);
+                    $qty = max(1, (int)$this->stockRegistry->getStockItem($product->getId())->getQty());
+
+                    $inventoryPayload = $this->inventoryPayloadBuilder->build(
+                        $product,
+                        $pricedDropdowns,
+                        $basePrice,
+                        (int)$readinessStateId,
+                        $qty
+                    );
+
+                    if ($inventoryPayload) {
+                        $this->logger->info(
+                            "Syncing " . count($pricedDropdowns) . " priced dropdown(s) as Etsy Variations."
+                        );
+                        $this->etsyClient->updateInventory($activeListingId, $inventoryPayload);
+                    }
+                }
+            }
+
             return $activeListingId;
 
         } catch (\Exception $e) {
             $this->logger->error("ETSY SYNC FAILED: " . $e->getMessage());
             throw new LocalizedException(__('ETSY SYNC FAILED: %1', $e->getMessage()));
         }
+    }
+
+    /**
+     * Refresh the Etsy listing's images to match Magento's current gallery.
+     *
+     * Skips the refresh entirely when the gallery hasn't changed since the last sync
+     * (tracked via the etsy_images_hash attribute), so routine syncs don't re-upload and
+     * re-delete images that haven't moved. Etsy has no "replace all images" endpoint, so
+     * an actual refresh uploads the current gallery first and only deletes the previous
+     * images once that's fully succeeded - if the upload fails partway (e.g. hitting
+     * Etsy's 10-image cap), the listing keeps its original images instead of being left
+     * with fewer than before.
+     *
+     * @param Product $product
+     * @param string|int $shopId
+     * @param string|int $listingId
+     * @return void
+     */
+    private function syncGalleryImages(Product $product, $shopId, $listingId)
+    {
+        $currentHash = $this->getGalleryImagesHash($product);
+
+        if ($currentHash === $product->getData('etsy_images_hash')) {
+            $this->logger->info("Etsy images unchanged since last sync - skipping image refresh.");
+            return;
+        }
+
+        $currentListing = $this->etsyClient->request("listings/{$listingId}", 'GET', ['includes' => 'Images']);
+
+        $this->uploadGalleryImages($product, $shopId, $listingId);
+
+        foreach ($currentListing['images'] ?? [] as $image) {
+            $this->etsyClient->request(
+                "shops/{$shopId}/listings/{$listingId}/images/{$image['listing_image_id']}",
+                'DELETE'
+            );
+        }
+
+        $this->productAction->updateAttributes([$product->getId()], ['etsy_images_hash' => $currentHash], 0);
+    }
+
+    /**
+     * Fingerprint of the product's gallery images (file + order), used to detect
+     * whether anything actually changed since the last Etsy sync.
+     *
+     * @param Product $product
+     * @return string
+     */
+    private function getGalleryImagesHash(Product $product): string
+    {
+        $files = array_map(function ($image) {
+            return $image->getFile();
+        }, $this->getSortedGalleryImages($product));
+
+        return md5(implode('|', $files));
+    }
+
+    /**
+     * Product gallery images sorted by position, as used for both hashing and upload rank.
+     *
+     * @param Product $product
+     * @return \Magento\Catalog\Model\Product\Gallery\Entry[]
+     */
+    private function getSortedGalleryImages(Product $product): array
+    {
+        $galleryImages = $product->getMediaGalleryImages();
+
+        if (!$galleryImages || $galleryImages->getSize() === 0) {
+            return [];
+        }
+
+        $imagesArray = $galleryImages->getItems();
+        usort($imagesArray, function ($a, $b) {
+            return (int)$a->getPosition() <=> (int)$b->getPosition();
+        });
+
+        return $imagesArray;
     }
 
     /**
@@ -206,14 +329,9 @@ class ProductSync
      */
     private function uploadGalleryImages(Product $product, $shopId, $listingId)
     {
-        $galleryImages = $product->getMediaGalleryImages();
+        $imagesArray = $this->getSortedGalleryImages($product);
 
-        if ($galleryImages && $galleryImages->getSize() > 0) {
-            $imagesArray = $galleryImages->getItems();
-            usort($imagesArray, function ($a, $b) {
-                return (int)$a->getPosition() <=> (int)$b->getPosition();
-            });
-
+        if (!empty($imagesArray)) {
             $rank = 1;
 
             foreach ($imagesArray as $image) {

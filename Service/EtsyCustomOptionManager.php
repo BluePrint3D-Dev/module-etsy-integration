@@ -27,6 +27,11 @@ use Psr\Log\LoggerInterface;
 class EtsyCustomOptionManager
 {
     /**
+     * Etsy only allows two custom (non-taxonomy) variation property slots per listing.
+     */
+    private const MAX_VARIATION_PROPERTIES = 2;
+
+    /**
      * @var ScopeConfigInterface
      */
     protected $scopeConfig;
@@ -59,7 +64,26 @@ class EtsyCustomOptionManager
     }
 
     /**
+     * Whether Etsy Variation sync (priced dropdowns keeping their price) is available.
+     * Pro feature - the free tier always returns false here, so priced dropdowns fall
+     * back to plain Personalization Q&amp;A (no price) instead. Overridden by an `after`
+     * plugin in BluePrint3D_EtsyIntegrationPro, same mechanism as QueueManagerPlugin's
+     * freemium-limit overrides.
+     *
+     * @return bool
+     */
+    public function isVariationSyncAvailable(): bool
+    {
+        return false;
+    }
+
+    /**
      * Extract native and shared custom options to format for Etsy.
+     *
+     * Priced dropdowns/radios are excluded here only when Variation sync is available
+     * (Pro) - they're synced separately as Etsy Variations (via extractPricedDropdowns())
+     * so their price adjustment actually carries over, which Etsy Personalizations
+     * cannot support. On the free tier they stay here as ordinary (unpriced) Q&amp;A.
      *
      * @param Product $product
      * @return array
@@ -69,30 +93,19 @@ class EtsyCustomOptionManager
     {
         $handlingMode = $this->scopeConfig->getValue('etsy_integration/sync_settings/unsupported_options') ?: 'strict';
         $etsyQuestions = [];
+        $variationSyncAvailable = $this->isVariationSyncAvailable();
 
-        // 1. Process Native Magento Options
-        $nativeOptions = $product->getOptions() ?: [];
-        foreach ($nativeOptions as $option) {
-            $this->processOptionItem(
-                $option->getType(),
-                $option->getTitle(),
-                (bool)$option->getIsRequire(),
-                $option->getData('placeholder'),
-                $option->getValues(),
-                $etsyQuestions,
-                $handlingMode
-            );
-        }
+        foreach ($this->getNormalizedOptions($product) as $option) {
+            if ($variationSyncAvailable && $this->isPricedDropdown($option)) {
+                continue;
+            }
 
-        // 2. Process Shared Product Options (Bypasses Admin/Cron Area Restrictions)
-        $sharedOptions = $this->loadSharedOptionsFromDb((int)$product->getId());
-        foreach ($sharedOptions as $option) {
             $this->processOptionItem(
                 $option['type'],
                 $option['title'],
-                (bool)$option['is_required'],
-                $option['placeholder'] ?? null,
-                $option['values'] ?? [],
+                $option['is_required'],
+                $option['placeholder'],
+                $option['values'],
                 $etsyQuestions,
                 $handlingMode
             );
@@ -102,13 +115,133 @@ class EtsyCustomOptionManager
     }
 
     /**
+     * Extract dropdown/radio options that have a price on at least one value,
+     * for syncing as Etsy Variations (which support per-value pricing, unlike
+     * Personalizations). Capped at MAX_VARIATION_PROPERTIES per Etsy's limit
+     * on custom (non-taxonomy) variation properties.
+     *
+     * Pro feature - returns empty on the free tier, see isVariationSyncAvailable().
+     *
+     * @param Product $product
+     * @return array Each entry: ['title' => string, 'values' => [['label' => string, 'price' => float], ...]]
+     * @throws LocalizedException
+     */
+    public function extractPricedDropdowns(Product $product): array
+    {
+        if (!$this->isVariationSyncAvailable()) {
+            return [];
+        }
+
+        $handlingMode = $this->scopeConfig->getValue('etsy_integration/sync_settings/unsupported_options') ?: 'strict';
+        $pricedDropdowns = [];
+
+        foreach ($this->getNormalizedOptions($product) as $option) {
+            if (!$this->isPricedDropdown($option)) {
+                continue;
+            }
+
+            if (count($pricedDropdowns) >= self::MAX_VARIATION_PROPERTIES) {
+                $this->handleUnsupported(
+                    "Etsy only supports " . self::MAX_VARIATION_PROPERTIES
+                    . " price-adding dropdowns per listing (extra dropdown: \"{$option['title']}\").",
+                    $handlingMode
+                );
+                continue;
+            }
+
+            $values = [];
+            foreach ($option['values'] as $val) {
+                if ($val['title'] === '') {
+                    continue;
+                }
+                $values[] = ['label' => substr($val['title'], 0, 20), 'price' => $val['price']];
+            }
+
+            if (!empty($values)) {
+                $pricedDropdowns[] = ['title' => substr($option['title'], 0, 45), 'values' => $values];
+            }
+        }
+
+        return $pricedDropdowns;
+    }
+
+    /**
+     * Load native and shared options into one normalized shape so both
+     * personalization and priced-dropdown extraction can share the same source data.
+     *
+     * @param Product $product
+     * @return array Each entry: ['type', 'title', 'is_required', 'placeholder', 'values' => [['title', 'price'], ...]]
+     */
+    private function getNormalizedOptions(Product $product): array
+    {
+        $normalized = [];
+
+        foreach ($product->getOptions() ?: [] as $option) {
+            $values = [];
+            foreach ($option->getValues() ?: [] as $value) {
+                $values[] = [
+                    'title' => (string)$value->getTitle(),
+                    'price' => (float)$value->getPrice(true)
+                ];
+            }
+            $normalized[] = [
+                'type' => $option->getType(),
+                'title' => (string)$option->getTitle(),
+                'is_required' => (bool)$option->getIsRequire(),
+                'placeholder' => $option->getData('placeholder'),
+                'values' => $values
+            ];
+        }
+
+        foreach ($this->loadSharedOptionsFromDb((int)$product->getId()) as $option) {
+            $values = [];
+            foreach ($option['values'] ?? [] as $val) {
+                $values[] = [
+                    'title' => (string)($val['title'] ?? ''),
+                    'price' => (float)($val['price_modifier'] ?? 0)
+                ];
+            }
+            $normalized[] = [
+                'type' => $option['type'],
+                'title' => (string)$option['title'],
+                'is_required' => (bool)$option['is_required'],
+                'placeholder' => $option['placeholder'] ?? null,
+                'values' => $values
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * True if this is a single-select option (dropdown/radio) with a price on at least one value.
+     *
+     * @param array $option
+     * @return bool
+     */
+    private function isPricedDropdown(array $option): bool
+    {
+        if (!in_array($option['type'], ['drop_down', 'radio'], true)) {
+            return false;
+        }
+
+        foreach ($option['values'] as $value) {
+            if (abs($value['price']) > 0.0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Process a single custom option and format it into an Etsy question.
      *
      * @param string $type
      * @param string $title
      * @param bool $isRequired
      * @param string|null $placeholder
-     * @param array|object $values
+     * @param array $values
      * @param array $etsyQuestions
      * @param string $handlingMode
      * @return void
@@ -119,7 +252,7 @@ class EtsyCustomOptionManager
         $title,
         $isRequired,
         $placeholder,
-        $values,
+        array $values,
         &$etsyQuestions,
         $handlingMode
     ) {
@@ -151,8 +284,7 @@ class EtsyCustomOptionManager
 
             $dropdownOptions = [];
             foreach ($values as $val) {
-                // Handle both Value objects (native) and arrays (shared options)
-                $valTitle = is_object($val) ? $val->getTitle() : ($val['title'] ?? '');
+                $valTitle = $val['title'] ?? '';
                 if (!empty($valTitle)) {
                     $dropdownOptions[] = ['label' => substr($valTitle, 0, 20)];
                 }
