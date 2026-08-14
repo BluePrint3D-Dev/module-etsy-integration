@@ -29,21 +29,23 @@
 
 <hr />
 
+<h2>🚀 Free vs. Pro</h2>
+<p>This free edition syncs up to <strong>20 products</strong>. For unlimited products, bulk operations, configurable variation support, and more, see <a href="https://www.blueprint3d.dev/modules/etsy-integration-pro"><strong>Etsy Integration Pro</strong></a>.</p>
+
+<hr />
+
 <h2>📦 Installation</h2>
 
-<p><strong>1. Register the Private Packagist Repository</strong></p>
-<pre><code>composer config repositories.blueprint3d composer https://repo.blueprint3d.dev</code></pre>
-
-<p><strong>2. Install via Composer</strong></p>
+<p><strong>1. Install via Composer</strong></p>
 <pre><code>composer require blueprint3d/module-etsy-integration</code></pre>
 
-<p><strong>3. Enable the module</strong></p>
+<p><strong>2. Enable the module</strong></p>
 <pre><code>php bin/magento module:enable BluePrint3D_EtsyIntegration</code></pre>
 
-<p><strong>4. Run the database upgrade</strong></p>
+<p><strong>3. Run the database upgrade</strong></p>
 <pre><code>php bin/magento setup:upgrade</code></pre>
 
-<p><strong>5. Compile and flush cache</strong></p>
+<p><strong>4. Compile and flush cache</strong></p>
 <pre><code>php bin/magento setup:di:compile
 php bin/magento cache:flush</code></pre>
 
