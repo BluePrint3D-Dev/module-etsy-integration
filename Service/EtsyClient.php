@@ -300,4 +300,19 @@ class EtsyClient
 
         return $this->request($endpoint, 'POST', $payload);
     }
+
+    /**
+     * Submit listing variations/pricing via the Listing Inventory API.
+     *
+     * Note: unlike other endpoints, this one is listing-scoped, not shop-scoped.
+     *
+     * @param int|string $listingId
+     * @param array $inventoryPayload
+     * @return array
+     * @throws LocalizedException
+     */
+    public function updateInventory($listingId, array $inventoryPayload)
+    {
+        return $this->request("listings/{$listingId}/inventory", 'PUT', $inventoryPayload);
+    }
 }
