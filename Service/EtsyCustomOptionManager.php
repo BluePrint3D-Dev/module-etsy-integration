@@ -150,11 +150,14 @@ class EtsyCustomOptionManager
             }
 
             $values = [];
+            $usedLabels = [];
             foreach ($option['values'] as $val) {
                 if ($val['title'] === '') {
                     continue;
                 }
-                $values[] = ['label' => substr($val['title'], 0, 20), 'price' => $val['price']];
+                $label = $this->makeUniqueLabel($val['title'], $usedLabels);
+                $usedLabels[$label] = true;
+                $values[] = ['label' => $label, 'price' => $val['price']];
             }
 
             if (!empty($values)) {
@@ -283,10 +286,13 @@ class EtsyCustomOptionManager
             }
 
             $dropdownOptions = [];
+            $usedLabels = [];
             foreach ($values as $val) {
                 $valTitle = $val['title'] ?? '';
                 if (!empty($valTitle)) {
-                    $dropdownOptions[] = ['label' => substr($valTitle, 0, 20)];
+                    $label = $this->makeUniqueLabel($valTitle, $usedLabels);
+                    $usedLabels[$label] = true;
+                    $dropdownOptions[] = ['label' => $label];
                 }
             }
 
@@ -300,6 +306,39 @@ class EtsyCustomOptionManager
             // 3. Unsupported Types
             $this->handleUnsupported("Unsupported custom option type detected: " . $type, $handlingMode);
         }
+    }
+
+    /**
+     * Truncate an option value's title to Etsy's 20-character option label limit, avoiding
+     * collisions: Etsy rejects a question outright if two of its options end up with the
+     * identical label ("duplicate option labels are not allowed"), which genuinely different
+     * values can trigger once truncated (e.g. "Classic Tractor Colours" and "Classic Tractor
+     * Colours + Shield Badge to Left" both start with the same first 20 characters).
+     *
+     * @param string $title
+     * @param array $usedLabels Labels already assigned within this same question, as a set (label => true)
+     * @return string
+     */
+    private function makeUniqueLabel(string $title, array $usedLabels): string
+    {
+        $label = substr($title, 0, 20);
+
+        if (!isset($usedLabels[$label])) {
+            return $label;
+        }
+
+        for ($suffix = 2; $suffix <= 99; $suffix++) {
+            $marker = " ({$suffix})";
+            $candidate = rtrim(substr($title, 0, 20 - strlen($marker))) . $marker;
+
+            if (!isset($usedLabels[$candidate])) {
+                return $candidate;
+            }
+        }
+
+        // Astronomically unlikely (98 collisions on one question, which is already capped
+        // at a handful of options) - fall back to the plain truncation rather than throwing.
+        return $label;
     }
 
     /**

@@ -15,6 +15,9 @@
  */
 -->
 <page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <script src="BluePrint3D_EtsyIntegration::js/etsy-listing-id-warning.js"/>
+    </head>
     <body>
         <referenceContainer name="content">
             <block class="BluePrint3D\EtsyIntegration\Block\Adminhtml\Queue\ErrorAlert"
