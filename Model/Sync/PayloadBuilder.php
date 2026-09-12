@@ -128,7 +128,12 @@ class PayloadBuilder
         $keywordArray = preg_split('/[,;\n]+/', $metaKeywords);
 
         foreach ($keywordArray as $keyword) {
+            // Treat hyphens/underscores as word boundaries rather than
+            // stripping them outright, so "Rustic-Decor" becomes "rustic
+            // decor" instead of merging into "rusticdecor".
+            $keyword = str_replace(['-', '_'], ' ', $keyword);
             $clean = preg_replace('/[^a-zA-Z0-9\s]/', '', $keyword);
+            $clean = preg_replace('/\s+/', ' ', (string)$clean);
             $clean = trim((string)$clean);
 
             if ($clean !== '') {
@@ -186,6 +191,7 @@ class PayloadBuilder
             $desc
         );
         $desc = str_replace('<li>', "• ", $desc);
+        $desc = str_replace('</li>', "\n", $desc);
 
         // 5. Strip the actual HTML brackets
         $desc = strip_tags($desc);
