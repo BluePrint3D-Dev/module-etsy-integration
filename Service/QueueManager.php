@@ -28,7 +28,7 @@ class QueueManager
     /**
      * Maximum allowed products for the Free / Freemium tier.
      */
-    private const FREE_TIER_PRODUCT_LIMIT = 5;
+    private const FREE_TIER_PRODUCT_LIMIT = 20;
 
     /**
      * @var ResourceConnection
