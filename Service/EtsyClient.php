@@ -248,22 +248,32 @@ class EtsyClient
         }
 
         // Native cURL execution prevents array-to-string parameter flattening
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $postFields,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HTTPHEADER => [
-                'x-api-key: ' . $appKey . ':' . $sharedSecret,
-                'Authorization: Bearer ' . $accessToken
-            ]
-        ]);
+        $send = function (string $token) use ($url, $postFields, $appKey, $sharedSecret): array {
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $postFields,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'x-api-key: ' . $appKey . ':' . $sharedSecret,
+                    'Authorization: Bearer ' . $token
+                ]
+            ]);
+            $body = curl_exec($ch);
+            $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+            return [$body, $status, $error];
+        };
 
-        $responseBody = curl_exec($ch);
-        $statusCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
+        [$responseBody, $statusCode, $curlError] = $send($accessToken);
+
+        if ($statusCode === 401) {
+            $this->logger->info('Etsy Access Token expired during image upload. Attempting automatic refresh...');
+            $accessToken = $this->refreshAccessToken();
+            [$responseBody, $statusCode, $curlError] = $send($accessToken);
+        }
 
         if ($curlError) {
             throw new LocalizedException(__('cURL Image Upload Error: %1', $curlError));

@@ -144,7 +144,6 @@ class ErrorAlert extends Template
      */
     public function getRetryUrl(): string
     {
-        // Make sure 'etsy' matches your actual module's router ID in routes.xml
-        return $this->getUrl('etsy/queue/retry');
+        return $this->getUrl('blueprint3d_etsy/queue/retry');
     }
 }
