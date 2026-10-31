@@ -16,6 +16,12 @@
  * The field's loaded value is set by Magento's knockout form binding (a JS property
  * assignment), not the HTML value attribute, so element.defaultValue never reflects it -
  * capture the real value on focus instead, otherwise cancelling reverts to blank.
+ *
+ * Magento's confirm dialog is asynchronous, so by the time the admin answers, the field
+ * (and the form's knockout value) already hold the new text. Cancelling puts the old value
+ * back and fires a change event so the form's value follows the field.
+ *
+ * This file is loaded as a plain script, so RequireJS is called lazily when a change happens.
  */
 document.addEventListener('focusin', function (event) {
     if (event.target.matches('input[name="product[etsy_listing_id]"]')) {
@@ -28,24 +34,53 @@ document.addEventListener('change', function (event) {
         return;
     }
 
-    var field = event.target;
-    var newValue = field.value.trim();
-    var originalValue = (field.dataset.etsyOriginalValue || '').trim();
+    var field = event.target,
+        newValue = field.value.trim(),
+        originalValue = (field.dataset.etsyOriginalValue || '').trim();
 
     if (newValue === originalValue) {
         return;
     }
 
-    var message = newValue === ''
-        ? 'Clearing the Etsy Listing ID means the next sync will CREATE A NEW listing on Etsy '
-            + 'instead of updating listing ' + originalValue + '. If that listing still represents '
-            + 'this product, this will likely create a duplicate.\n\nContinue?'
-        : 'Linking this product to Etsy Listing ID "' + newValue + '" means the next sync will '
-            + 'OVERWRITE that listing\'s title, description, price, images, personalizations and '
-            + 'variations with this product\'s current Magento data.\n\n'
-            + 'Make sure this product is fully up to date in Magento first.\n\nContinue?';
+    require(['underscore', 'Magento_Ui/js/modal/confirm', 'mage/translate'], function (_, confirm, $t) {
+        var content;
 
-    if (!window.confirm(message)) {
-        field.value = originalValue;
-    }
+        // The dialog renders HTML, so anything the admin typed must be escaped first.
+        if (newValue === '') {
+            content = $t('Clearing the Etsy Listing ID means the next sync will <strong>create a new listing</strong> '
+                + 'on Etsy instead of updating listing %1. If that listing still represents this product, '
+                + 'this will likely create a duplicate.').replace('%1', function () {
+                return _.escape(originalValue);
+            });
+        } else {
+            content = $t('Linking this product to Etsy Listing ID %1 means the next sync will '
+                + '<strong>overwrite</strong> that listing\'s title, description, price, images, personalizations '
+                + 'and variations with this product\'s current Magento data.<br><br>'
+                + 'Make sure this product is fully up to date in Magento first.')
+                .replace('%1', function () {
+                    return '<strong>' + _.escape(newValue) + '</strong>';
+                });
+        }
+
+        confirm({
+            title: newValue === '' ? $t('Clear the Etsy Listing ID?') : $t('Link to this Etsy listing?'),
+            content: content,
+            actions: {
+                /**
+                 * Keep the new listing ID.
+                 */
+                confirm: function () {
+                    field.dataset.etsyOriginalValue = newValue;
+                },
+
+                /**
+                 * Runs however the dialog is dismissed (Cancel, the X, Esc or a click outside it).
+                 */
+                cancel: function () {
+                    field.value = originalValue;
+                    field.dispatchEvent(new Event('change', {bubbles: true}));
+                }
+            }
+        });
+    });
 });

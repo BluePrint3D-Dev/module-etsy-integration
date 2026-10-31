@@ -47,7 +47,9 @@ class ProductSyncGalleryTest extends TestCase
     /** @var ProductAction|MockObject */
     private $productAction;
 
+    /** @var ProductSync */
     private ProductSync $sync;
+    /** @var string */
     private string $dir;
 
     protected function setUp(): void
@@ -125,7 +127,7 @@ class ProductSyncGalleryTest extends TestCase
         $hash = $this->call('getGalleryImagesHash', [$this->product(['/a.jpg', '/b.jpg'])]);
 
         // Must equal the pre-processor formula, or free users would re-upload every image.
-        $this->assertSame(md5('/a.jpg|/b.jpg'), $hash);
+        $this->assertSame(hash('md5', '/a.jpg|/b.jpg'), $hash);
     }
 
     public function testSignatureIsFoldedIntoTheHash(): void
@@ -134,7 +136,7 @@ class ProductSyncGalleryTest extends TestCase
 
         $hash = $this->call('getGalleryImagesHash', [$this->product(['/a.jpg', '/b.jpg'])]);
 
-        $this->assertSame(md5('/a.jpg|/b.jpg#crop-v1:auto'), $hash);
+        $this->assertSame(hash('md5', '/a.jpg|/b.jpg#crop-v1:auto'), $hash);
     }
 
     public function testDerivedFileIsUploadedAndThenDeleted(): void
@@ -211,11 +213,12 @@ class ProductSyncGalleryTest extends TestCase
      *
      * @param int $existing
      * @param callable $onUpload fn(int $rank, int $onListing): void
-     * @return \ArrayObject the ordered log: "upload:N" and "delete:ID"
+     * @return \stdClass its `entries` list is the ordered log: "upload:N" and "delete:ID"
      */
-    private function listing(int $existing, callable $onUpload): \ArrayObject
+    private function listing(int $existing, callable $onUpload): \stdClass
     {
-        $log = new \ArrayObject();
+        $log = new \stdClass();
+        $log->entries = [];
         $onListing = $existing;
         $images = [];
         for ($i = 1; $i <= $existing; $i++) {
@@ -225,7 +228,7 @@ class ProductSyncGalleryTest extends TestCase
         $this->client->method('request')->willReturnCallback(
             function (string $endpoint, string $method = 'GET') use ($log, &$onListing, $images): array {
                 if ($method === 'DELETE') {
-                    $log[] = 'delete:' . basename($endpoint);
+                    $log->entries[] = 'delete:' . basename($endpoint);
                     $onListing--;
                     return [];
                 }
@@ -236,7 +239,7 @@ class ProductSyncGalleryTest extends TestCase
         $this->client->method('uploadImage')->willReturnCallback(
             function (string $endpoint, string $path, int $rank) use ($log, &$onListing, $onUpload): array {
                 $onUpload($rank, $onListing);
-                $log[] = 'upload:' . $rank;
+                $log->entries[] = 'upload:' . $rank;
                 $onListing++;
                 return [];
             }
@@ -262,7 +265,7 @@ class ProductSyncGalleryTest extends TestCase
 
         $this->call('syncGalleryImages', [$this->staleProduct($this->files(25)), 1, 2]);
 
-        $uploads = array_values(array_filter((array)$log, static fn ($e) => str_starts_with($e, 'upload:')));
+        $uploads = array_values(array_filter($log->entries, static fn ($e) => str_starts_with($e, 'upload:')));
         $this->assertCount(20, $uploads);
         $this->assertSame('upload:20', end($uploads));
     }
@@ -277,7 +280,7 @@ class ProductSyncGalleryTest extends TestCase
 
         $this->assertSame(
             ['upload:1', 'upload:2', 'upload:3', 'delete:101', 'delete:102'],
-            (array)$log
+            $log->entries
         );
     }
 
@@ -299,7 +302,7 @@ class ProductSyncGalleryTest extends TestCase
                 'delete:101', 'delete:102', 'delete:103', 'delete:104',
                 'upload:7', 'upload:8',
             ],
-            (array)$log,
+            $log->entries,
             'old images go only when Etsy says full, each is deleted once, and all 8 new images land'
         );
     }
@@ -316,7 +319,7 @@ class ProductSyncGalleryTest extends TestCase
 
         $this->call('syncGalleryImages', [$this->staleProduct($this->files(14)), 1, 2]);
 
-        $uploads = array_filter((array)$log, static fn ($e) => str_starts_with($e, 'upload:'));
+        $uploads = array_filter($log->entries, static fn ($e) => str_starts_with($e, 'upload:'));
         $this->assertCount(10, $uploads, 'keeps what Etsy accepted instead of failing every sync');
     }
 

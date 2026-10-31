@@ -359,52 +359,92 @@ class ProductSync
      */
     private function uploadGalleryImages(Product $product, $shopId, $listingId, array &$previousImages = [])
     {
-        $imagesArray = $this->getSortedGalleryImages($product);
+        $rank = 1;
 
-        if (!empty($imagesArray)) {
-            $rank = 1;
+        foreach ($this->getSortedGalleryImages($product) as $image) {
+            if ($rank > self::ETSY_MAX_IMAGES) {
+                break;
+            }
 
-            foreach ($imagesArray as $image) {
-                if ($rank > self::ETSY_MAX_IMAGES) {
-                    break;
-                }
+            $imagePath = $this->getGalleryImagePath($image);
+            if ($imagePath === null) {
+                continue;
+            }
 
-                $imageFile = $image->getFile();
-                if ($imageFile) {
-                    $relativePath = 'catalog/product' . $imageFile;
+            $this->logger->info("Uploading gallery image to Etsy at Rank {$rank}: " . $imagePath);
 
-                    // Replaced file_exists() with Magento's DirectoryRead object validation
-                    if ($this->mediaDirectory->isFile($relativePath)) {
-                        $imagePath = $this->mediaDirectory->getAbsolutePath($relativePath);
-                        $this->logger->info("Uploading gallery image to Etsy at Rank {$rank}: " . $imagePath);
+            if (!$this->uploadGalleryImage($product, $shopId, $listingId, $imagePath, $rank, $previousImages)) {
+                return;
+            }
+            $rank++;
+        }
+    }
 
-                        // A processor may hand back a derived (temp) copy for Etsy only;
-                        // the Magento gallery file itself is never modified.
-                        $uploadPath = $this->galleryImageProcessor->prepare($product, $imagePath, $rank);
+    /**
+     * Absolute path of a gallery image in Magento's media directory, or null when it has no file on disk.
+     *
+     * @param \Magento\Catalog\Model\Product\Gallery\Entry|\Magento\Framework\DataObject $image
+     * @return string|null
+     */
+    private function getGalleryImagePath($image): ?string
+    {
+        $imageFile = $image->getFile();
+        if (!$imageFile) {
+            return null;
+        }
 
-                        try {
-                            $accepted = $this->uploadImageMakingRoom(
-                                $shopId,
-                                $listingId,
-                                $uploadPath,
-                                $rank,
-                                $rank - 1,
-                                $previousImages
-                            );
-                        } finally {
-                            if ($uploadPath !== $imagePath && is_file($uploadPath)) {
-                                unlink($uploadPath);
-                            }
-                        }
+        $relativePath = 'catalog/product' . $imageFile;
 
-                        if (!$accepted) {
-                            return;
-                        }
-                        $rank++;
-                    }
-                }
+        return $this->mediaDirectory->isFile($relativePath)
+            ? $this->mediaDirectory->getAbsolutePath($relativePath)
+            : null;
+    }
+
+    /**
+     * Send one gallery image to Etsy, via a processor's derived copy when it provides one.
+     *
+     * @param Product $product
+     * @param string|int $shopId
+     * @param string|int $listingId
+     * @param string $imagePath
+     * @param int $rank
+     * @param array $previousImages Passed by reference, see uploadImageMakingRoom().
+     * @return bool False when Etsy's limit was reached and no more images should be sent.
+     */
+    private function uploadGalleryImage(
+        Product $product,
+        $shopId,
+        $listingId,
+        string $imagePath,
+        int $rank,
+        array &$previousImages
+    ): bool {
+        // A processor may hand back a derived (temp) copy for Etsy only;
+        // the Magento gallery file itself is never modified.
+        $uploadPath = $this->galleryImageProcessor->prepare($product, $imagePath, $rank);
+
+        try {
+            return $this->uploadImageMakingRoom($shopId, $listingId, $uploadPath, $rank, $rank - 1, $previousImages);
+        } finally {
+            if ($uploadPath !== $imagePath) {
+                $this->discardTemporaryCopy($uploadPath);
             }
         }
+    }
+
+    /**
+     * Remove a derived image created for one upload. Only ever called on a temp copy, never a gallery file.
+     *
+     * @param string $path
+     * @return void
+     */
+    private function discardTemporaryCopy(string $path): void
+    {
+        // phpcs:disable Magento2.Functions.DiscouragedFunction -- temp copy outside the media directory
+        if (is_file($path)) {
+            unlink($path);
+        }
+        // phpcs:enable Magento2.Functions.DiscouragedFunction
     }
 
     /**

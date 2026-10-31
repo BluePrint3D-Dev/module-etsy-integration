@@ -28,6 +28,7 @@ use PHPUnit\Framework\TestCase;
  */
 class PayloadBuilderTest extends TestCase
 {
+    /** @var PayloadBuilder */
     private PayloadBuilder $builder;
 
     protected function setUp(): void
@@ -37,6 +38,24 @@ class PayloadBuilderTest extends TestCase
             $this->createMock(CategoryRepositoryInterface::class),
             $this->createMock(LoggerInterface::class)
         );
+    }
+
+    /**
+     * A real product holding the given description, as Magento reads it through its magic getters.
+     *
+     * PHPUnit 12 cannot stub those getters (they are __call, not declared methods).
+     *
+     * @param string $description
+     * @param string $name
+     * @return Product
+     */
+    private function productWithDescription(string $description, string $name = ''): Product
+    {
+        $product = $this->getMockBuilder(Product::class)->disableOriginalConstructor()->onlyMethods([])->getMock();
+        $product->setData('description', $description);
+        $product->setData('name', $name);
+
+        return $product;
     }
 
     private function invokePrivate(string $method, array $args)
@@ -139,8 +158,7 @@ class PayloadBuilderTest extends TestCase
 
     public function testDescriptionDecodesHtmlEntities(): void
     {
-        $product = $this->createMock(Product::class);
-        $product->method('getDescription')->willReturn('<p>Hello &amp; welcome</p>');
+        $product = $this->productWithDescription('<p>Hello &amp; welcome</p>');
 
         $result = $this->invokePrivate('formatDescription', [$product]);
 
@@ -149,8 +167,7 @@ class PayloadBuilderTest extends TestCase
 
     public function testDescriptionStripsStyleAndScriptBlocks(): void
     {
-        $product = $this->createMock(Product::class);
-        $product->method('getDescription')->willReturn(
+        $product = $this->productWithDescription(
             '<style>.x{color:red}</style><p>Real content</p><script>alert(1)</script>'
         );
 
@@ -161,8 +178,7 @@ class PayloadBuilderTest extends TestCase
 
     public function testDescriptionStripsWidgetShortcodes(): void
     {
-        $product = $this->createMock(Product::class);
-        $product->method('getDescription')->willReturn('Before {{widget type="Foo"}} After');
+        $product = $this->productWithDescription('Before {{widget type="Foo"}} After');
 
         $result = $this->invokePrivate('formatDescription', [$product]);
 
@@ -171,9 +187,7 @@ class PayloadBuilderTest extends TestCase
 
     public function testDescriptionFallsBackToProductNameWhenEmpty(): void
     {
-        $product = $this->createMock(Product::class);
-        $product->method('getDescription')->willReturn('');
-        $product->method('getName')->willReturn('Fallback Product Name');
+        $product = $this->productWithDescription('', 'Fallback Product Name');
 
         $result = $this->invokePrivate('formatDescription', [$product]);
 
@@ -182,8 +196,7 @@ class PayloadBuilderTest extends TestCase
 
     public function testDescriptionConvertsBreaksToNewlines(): void
     {
-        $product = $this->createMock(Product::class);
-        $product->method('getDescription')->willReturn('Line one<br>Line two<br/>Line three');
+        $product = $this->productWithDescription('Line one<br>Line two<br/>Line three');
 
         $result = $this->invokePrivate('formatDescription', [$product]);
 
@@ -192,8 +205,7 @@ class PayloadBuilderTest extends TestCase
 
     public function testDescriptionSeparatesListItemsWithNewlines(): void
     {
-        $product = $this->createMock(Product::class);
-        $product->method('getDescription')->willReturn('<ul><li>One</li><li>Two</li><li>Three</li></ul>');
+        $product = $this->productWithDescription('<ul><li>One</li><li>Two</li><li>Three</li></ul>');
 
         $result = $this->invokePrivate('formatDescription', [$product]);
 

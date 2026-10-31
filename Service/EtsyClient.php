@@ -230,6 +230,7 @@ class EtsyClient
             throw new LocalizedException(__('Etsy API credentials missing.'));
         }
 
+        // phpcs:ignore Magento2.Functions.DiscouragedFunction -- absolute path of a file already resolved by the caller
         if (!file_exists($filePath)) {
             throw new LocalizedException(__('Image file does not exist at path: %1', $filePath));
         }
@@ -240,6 +241,7 @@ class EtsyClient
         // Construct raw CURLFile payload bypassing Magento's http_build_query wrapper
         $mimeType = mime_content_type($filePath) ?: 'image/jpeg';
         $postFields = [
+            // phpcs:ignore Magento2.Functions.DiscouragedFunction -- string-only path parsing, no filesystem access
             'image' => new \CURLFile($filePath, $mimeType, basename($filePath))
         ];
 
@@ -247,7 +249,9 @@ class EtsyClient
             $postFields['rank'] = (int)$rank;
         }
 
-        // Native cURL execution prevents array-to-string parameter flattening
+        // Native cURL execution prevents array-to-string parameter flattening. Magento's own HTTP client
+        // cannot send a CURLFile as multipart/form-data, so there is no framework equivalent to use here.
+        // phpcs:disable Magento2.Functions.DiscouragedFunction
         $send = function (string $token) use ($url, $postFields, $appKey, $sharedSecret): array {
             $ch = curl_init();
             curl_setopt_array($ch, [
@@ -266,6 +270,7 @@ class EtsyClient
             curl_close($ch);
             return [$body, $status, $error];
         };
+        // phpcs:enable Magento2.Functions.DiscouragedFunction
 
         [$responseBody, $statusCode, $curlError] = $send($accessToken);
 
