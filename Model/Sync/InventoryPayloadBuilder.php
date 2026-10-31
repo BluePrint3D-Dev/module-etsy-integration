@@ -32,7 +32,7 @@ class InventoryPayloadBuilder
      * Assemble the updateListingInventory payload for up to 2 priced dropdowns.
      *
      * @param Product $product
-     * @param array $pricedDropdowns Each entry: ['title' => string, 'values' => [['label' => string, 'price' => float], ...]]
+     * @param array $pricedDropdowns Each entry: ['title' => string, 'values' => [['label', 'price'], ...]]
      * @param float $basePrice
      * @param int $readinessStateId
      * @param int $qty
@@ -117,11 +117,11 @@ class InventoryPayloadBuilder
             $next = [];
             foreach ($combinations as $existing) {
                 foreach ($property['values'] as $value) {
-                    $next[] = array_merge($existing, [[
+                    $next[] = [...$existing, [
                         'property_id' => $property['property_id'],
                         'property_name' => $property['property_name'],
                         'value' => $value
-                    ]]);
+                    ]];
                 }
             }
             $combinations = $next;

@@ -39,8 +39,10 @@ class GalleryImageProcessor
     }
 
     /**
-     * Fingerprint of any processing settings that affect what is uploaded, folded into the
-     * gallery hash so a settings change triggers one re-upload. Empty when nothing is applied.
+     * Fingerprint of any processing settings that affect what is uploaded.
+     *
+     * Folded into the gallery hash so a settings change triggers one re-upload.
+     * Empty when nothing is applied.
      *
      * @param Product $product
      * @return string

@@ -291,8 +291,9 @@ class ProductSync
     }
 
     /**
-     * Fingerprint of the product's gallery images (file + order), used to detect
-     * whether anything actually changed since the last Etsy sync.
+     * Fingerprint of the product's gallery images (file + order).
+     *
+     * Used to detect whether anything actually changed since the last Etsy sync.
      *
      * @param Product $product
      * @return string
@@ -312,7 +313,9 @@ class ProductSync
             $fingerprint .= '#' . $signature;
         }
 
-        return md5($fingerprint);
+        // Change-detection fingerprint, not a security hash. MD5 output is kept so hashes already
+        // stored on products stay valid (a different algorithm would re-upload every listing once).
+        return hash('md5', $fingerprint);
     }
 
     /**

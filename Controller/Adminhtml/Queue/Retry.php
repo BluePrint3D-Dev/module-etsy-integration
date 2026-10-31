@@ -1,19 +1,43 @@
 <?php
+/**
+ * Copyright (c) 2026 BluePrint3D Ltd. All rights reserved.
+ *
+ * Commercial Software License (EULA)
+ * This software is licensed, not sold. Unauthorized reproduction, distribution,
+ * reverse engineering, or sublicensing of this source code, modified or
+ * unmodified, without an active license agreement from BluePrint3D Ltd
+ * is strictly prohibited.
+ *
+ * @author    BluePrint3D Ltd <support@blueprint3d.dev>
+ * @copyright 2026 BluePrint3D Ltd (Company No. 13473806)
+ * @license   Commercial Proprietary EULA (See LICENSE.txt)
+ */
 namespace BluePrint3D\EtsyIntegration\Controller\Adminhtml\Queue;
 
 use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
 use BluePrint3D\EtsyIntegration\Service\QueueManager;
 
+/**
+ * Class Retry
+ * Re-queues every errored product so the next cron run tries them again.
+ */
 class Retry extends Action
 {
     /**
      * Authorization level of a basic admin session
      */
-    const ADMIN_RESOURCE = 'BluePrint3D_EtsyIntegration::config';
+    public const ADMIN_RESOURCE = 'BluePrint3D_EtsyIntegration::config';
 
+    /**
+     * @var QueueManager
+     */
     protected $queueManager;
 
+    /**
+     * @param Context $context
+     * @param QueueManager $queueManager
+     */
     public function __construct(
         Context $context,
         QueueManager $queueManager
@@ -22,6 +46,11 @@ class Retry extends Action
         $this->queueManager = $queueManager;
     }
 
+    /**
+     * Reset errored queue items to pending, then return to the page the button was clicked on.
+     *
+     * @return \Magento\Framework\Controller\Result\Redirect
+     */
     public function execute()
     {
         try {

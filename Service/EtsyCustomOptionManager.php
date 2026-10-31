@@ -169,8 +169,9 @@ class EtsyCustomOptionManager
     }
 
     /**
-     * Load native and shared options into one normalized shape so both
-     * personalization and priced-dropdown extraction can share the same source data.
+     * Load native and shared options into one normalized shape.
+     *
+     * Personalization and priced-dropdown extraction share the same source data.
      *
      * @param Product $product
      * @return array Each entry: ['type', 'title', 'is_required', 'placeholder', 'values' => [['title', 'price'], ...]]
