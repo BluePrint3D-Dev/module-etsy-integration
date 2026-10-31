@@ -23,7 +23,7 @@
     <li><strong>Native Etsy Personalization Sync:</strong> Leverages Etsy's multi-question personalization API to automatically push text fields, text areas, and non-inventory dropdowns straight into Etsy's custom options box.</li>
     <li><strong>BluePrint3D Shared Options Ready:</strong> Zero-config compatibility with <code>BluePrint3D_SharedProductOptions</code>, bypassing Admin/CLI area restrictions to read shared groups seamlessly.</li>
     <li><strong>Smart Tag Generator:</strong> Extracts meta keywords, cleans forbidden characters, caps length at 20 characters, and automatically falls back to product titles if meta tags are missing.</li>
-    <li><strong>Automated Gallery Sync:</strong> Sorts and uploads up to 10 high-resolution product gallery images according to native Magento position rankings.</li>
+    <li><strong>Automated Gallery Sync:</strong> Sorts and uploads up to 20 high-resolution product gallery images according to native Magento position rankings.</li>
     <li><strong>Configurable Safeguards:</strong> Built-in <em>Strict Mode</em> (abort sync and alert admin) and <em>Lenient Mode</em> (strip unsupported options and log warnings) to protect listings from API rejection.</li>
 </ul>
 

@@ -34,6 +34,17 @@ use BluePrint3D\EtsyIntegration\Model\Sync\GalleryImageProcessor;
 class ProductSync
 {
     /**
+     * Most images Etsy lets a listing hold (raised from 10 to 20 by Etsy in 2026).
+     */
+    private const ETSY_MAX_IMAGES = 20;
+
+    /**
+     * Etsy's earlier limit. A listing that already holds this many images when an upload fails is
+     * treated as full (the API can lag behind the dashboard), rather than as an unrelated error.
+     */
+    private const ETSY_LEGACY_IMAGE_LIMIT = 10;
+
+    /**
      * @var EtsyClient
      */
     protected $etsyClient;
@@ -258,9 +269,10 @@ class ProductSync
      * (tracked via the etsy_images_hash attribute), so routine syncs don't re-upload and
      * re-delete images that haven't moved. Etsy has no "replace all images" endpoint, so
      * an actual refresh uploads the current gallery first and only deletes the previous
-     * images once that's fully succeeded - if the upload fails partway (e.g. hitting
-     * Etsy's 10-image cap), the listing keeps its original images instead of being left
-     * with fewer than before.
+     * images once that's fully succeeded - if the upload fails partway the listing keeps
+     * its original images instead of being left with fewer than before. The one exception
+     * is a listing that is already full: there the previous images are removed to make room
+     * (see uploadImageMakingRoom()), since the alternative is failing on every sync.
      *
      * @param Product $product
      * @param string|int $shopId
@@ -277,15 +289,10 @@ class ProductSync
         }
 
         $currentListing = $this->etsyClient->request("listings/{$listingId}", 'GET', ['includes' => 'Images']);
+        $previousImages = $currentListing['images'] ?? [];
 
-        $this->uploadGalleryImages($product, $shopId, $listingId);
-
-        foreach ($currentListing['images'] ?? [] as $image) {
-            $this->etsyClient->request(
-                "shops/{$shopId}/listings/{$listingId}/images/{$image['listing_image_id']}",
-                'DELETE'
-            );
-        }
+        $this->uploadGalleryImages($product, $shopId, $listingId, $previousImages);
+        $this->deleteListingImages($shopId, $listingId, $previousImages);
 
         $this->productAction->updateAttributes([$product->getId()], ['etsy_images_hash' => $currentHash], 0);
     }
@@ -341,14 +348,16 @@ class ProductSync
     }
 
     /**
-     * Upload up to 10 product gallery images to the Etsy listing.
+     * Upload up to ETSY_MAX_IMAGES product gallery images to the Etsy listing.
      *
      * @param Product $product
      * @param string|int $shopId
      * @param string|int $listingId
+     * @param array $previousImages Images already on the listing that this upload replaces. Passed by
+     *     reference: any removed to make room are taken out of the list so they aren't deleted twice.
      * @return void
      */
-    private function uploadGalleryImages(Product $product, $shopId, $listingId)
+    private function uploadGalleryImages(Product $product, $shopId, $listingId, array &$previousImages = [])
     {
         $imagesArray = $this->getSortedGalleryImages($product);
 
@@ -356,7 +365,7 @@ class ProductSync
             $rank = 1;
 
             foreach ($imagesArray as $image) {
-                if ($rank > 10) {
+                if ($rank > self::ETSY_MAX_IMAGES) {
                     break;
                 }
 
@@ -374,20 +383,111 @@ class ProductSync
                         $uploadPath = $this->galleryImageProcessor->prepare($product, $imagePath, $rank);
 
                         try {
-                            $this->etsyClient->uploadImage(
-                                "shops/{$shopId}/listings/{$listingId}/images",
+                            $accepted = $this->uploadImageMakingRoom(
+                                $shopId,
+                                $listingId,
                                 $uploadPath,
-                                $rank
+                                $rank,
+                                $rank - 1,
+                                $previousImages
                             );
                         } finally {
                             if ($uploadPath !== $imagePath && is_file($uploadPath)) {
                                 unlink($uploadPath);
                             }
                         }
+
+                        if (!$accepted) {
+                            return;
+                        }
                         $rank++;
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Upload one image, coping with a listing that Etsy says is full.
+     *
+     * Etsy's image limit has changed and its API can lag behind its dashboard, so the limit is
+     * discovered rather than assumed. If an upload fails while the listing already holds
+     * ETSY_LEGACY_IMAGE_LIMIT or more images, it is treated as "full": the images being replaced are
+     * removed to make room and this image is tried once more, and if there is nothing left to remove
+     * Etsy has simply reached its limit, so the sync stops there instead of failing on every run.
+     * A failure on a smaller listing is a genuine error and is rethrown.
+     *
+     * @param string|int $shopId
+     * @param string|int $listingId
+     * @param string $uploadPath
+     * @param int $rank
+     * @param int $uploaded Images of this refresh already uploaded.
+     * @param array $previousImages Images being replaced that are still on the listing (by reference).
+     * @return bool False when Etsy's limit was reached and no more images should be sent.
+     * @throws \Exception
+     */
+    private function uploadImageMakingRoom(
+        $shopId,
+        $listingId,
+        string $uploadPath,
+        int $rank,
+        int $uploaded,
+        array &$previousImages
+    ): bool {
+        $endpoint = "shops/{$shopId}/listings/{$listingId}/images";
+
+        try {
+            $this->etsyClient->uploadImage($endpoint, $uploadPath, $rank);
+
+            return true;
+        } catch (\Exception $e) {
+            if (count($previousImages) + $uploaded < self::ETSY_LEGACY_IMAGE_LIMIT) {
+                throw $e;
+            }
+
+            if ($previousImages === []) {
+                $this->logger->warning(sprintf(
+                    'Etsy accepted %d images for listing %s and refused the next, so the rest are not sent: %s',
+                    $uploaded,
+                    $listingId,
+                    $e->getMessage()
+                ));
+
+                return false;
+            }
+
+            $this->logger->warning(sprintf(
+                'Etsy refused image %d for listing %s while it holds %d images; removing the %d replaced '
+                . 'images to make room and retrying: %s',
+                $rank,
+                $listingId,
+                count($previousImages) + $uploaded,
+                count($previousImages),
+                $e->getMessage()
+            ));
+            $this->deleteListingImages($shopId, $listingId, $previousImages);
+            $this->etsyClient->uploadImage($endpoint, $uploadPath, $rank);
+
+            return true;
+        }
+    }
+
+    /**
+     * Delete images from the Etsy listing, taking each out of the list as it goes.
+     *
+     * @param string|int $shopId
+     * @param string|int $listingId
+     * @param array $images Etsy image records (needs listing_image_id); emptied as they are deleted.
+     * @return void
+     */
+    private function deleteListingImages($shopId, $listingId, array &$images): void
+    {
+        foreach ($images as $key => $image) {
+            $this->etsyClient->request(
+                "shops/{$shopId}/listings/{$listingId}/images/{$image['listing_image_id']}",
+                'DELETE'
+            );
+            unset($images[$key]);
         }
     }
 
