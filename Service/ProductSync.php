@@ -25,6 +25,7 @@ use Magento\Framework\Exception\LocalizedException;
 use Psr\Log\LoggerInterface;
 use BluePrint3D\EtsyIntegration\Model\Sync\PayloadBuilder;
 use BluePrint3D\EtsyIntegration\Model\Sync\InventoryPayloadBuilder;
+use BluePrint3D\EtsyIntegration\Model\Sync\GalleryImageProcessor;
 
 /**
  * Class ProductSync
@@ -78,6 +79,11 @@ class ProductSync
     protected $stockRegistry;
 
     /**
+     * @var GalleryImageProcessor
+     */
+    protected $galleryImageProcessor;
+
+    /**
      * ProductSync constructor.
      *
      * @param EtsyClient $etsyClient
@@ -89,6 +95,7 @@ class ProductSync
      * @param PayloadBuilder $payloadBuilder
      * @param InventoryPayloadBuilder $inventoryPayloadBuilder
      * @param StockRegistryInterface $stockRegistry
+     * @param GalleryImageProcessor $galleryImageProcessor
      */
     public function __construct(
         EtsyClient $etsyClient,
@@ -99,7 +106,8 @@ class ProductSync
         EtsyCustomOptionManager $customOptionManager,
         PayloadBuilder $payloadBuilder,
         InventoryPayloadBuilder $inventoryPayloadBuilder,
-        StockRegistryInterface $stockRegistry
+        StockRegistryInterface $stockRegistry,
+        GalleryImageProcessor $galleryImageProcessor
     ) {
         $this->etsyClient = $etsyClient;
         $this->scopeConfig = $scopeConfig;
@@ -110,6 +118,7 @@ class ProductSync
         $this->payloadBuilder = $payloadBuilder;
         $this->inventoryPayloadBuilder = $inventoryPayloadBuilder;
         $this->stockRegistry = $stockRegistry;
+        $this->galleryImageProcessor = $galleryImageProcessor;
     }
 
     /**
@@ -294,7 +303,16 @@ class ProductSync
             return $image->getFile();
         }, $this->getSortedGalleryImages($product));
 
-        return md5(implode('|', $files));
+        $fingerprint = implode('|', $files);
+
+        // Appended only when a processor (e.g. Pro auto-crop) contributes something, so the
+        // hash - and therefore the "skip re-upload" decision - is unchanged for everyone else.
+        $signature = $this->galleryImageProcessor->getSignature($product);
+        if ($signature !== '') {
+            $fingerprint .= '#' . $signature;
+        }
+
+        return md5($fingerprint);
     }
 
     /**
@@ -348,11 +366,21 @@ class ProductSync
                         $imagePath = $this->mediaDirectory->getAbsolutePath($relativePath);
                         $this->logger->info("Uploading gallery image to Etsy at Rank {$rank}: " . $imagePath);
 
-                        $this->etsyClient->uploadImage(
-                            "shops/{$shopId}/listings/{$listingId}/images",
-                            $imagePath,
-                            $rank
-                        );
+                        // A processor may hand back a derived (temp) copy for Etsy only;
+                        // the Magento gallery file itself is never modified.
+                        $uploadPath = $this->galleryImageProcessor->prepare($product, $imagePath, $rank);
+
+                        try {
+                            $this->etsyClient->uploadImage(
+                                "shops/{$shopId}/listings/{$listingId}/images",
+                                $uploadPath,
+                                $rank
+                            );
+                        } finally {
+                            if ($uploadPath !== $imagePath && is_file($uploadPath)) {
+                                unlink($uploadPath);
+                            }
+                        }
                         $rank++;
                     }
                 }
