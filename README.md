@@ -2,7 +2,7 @@
 
 <p>
     <a href="#"><img src="https://img.shields.io/badge/Magento-2.4.x-orange.svg" alt="Magento Version" /></a>
-    <a href="#"><img src="https://img.shields.io/badge/PHP-8.1%20|%208.2%20|%208.3-blue.svg" alt="PHP Version" /></a>
+    <a href="#"><img src="https://img.shields.io/badge/PHP-8.1--8.5-blue.svg" alt="PHP Version" /></a>
     <a href="#"><img src="https://img.shields.io/badge/Etsy%20API-v3%20Ready-brightgreen.svg" alt="Etsy API v3" /></a>
     <a href="#"><img src="https://img.shields.io/badge/License-Commercial_EULA-lightgrey.svg" alt="License" /></a>
 </p>

@@ -79,7 +79,7 @@
                 <field id="upgrade_notice" translate="label" type="button" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Freemium Version</label>
                     <frontend_model>BluePrint3D\EtsyIntegration\Block\Adminhtml\System\Config\UpgradeButton</frontend_model>
-                    <comment><![CDATA[Currently running the Freemium Tier (20 Product Limit). Upgrade to Pro to unlock unlimited catalog syncing, 2-way stock sync, and automated Etsy order imports.]]></comment>
+                    <comment><![CDATA[Currently running the Freemium Tier (20 Product Limit). Upgrade to Pro to unlock unlimited catalog syncing, bulk sync from the product grid, configurable product variations, Etsy-only price markups and image auto-crop.]]></comment>
                 </field>
             </group>
         </section>
