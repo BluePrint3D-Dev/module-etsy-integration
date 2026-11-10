@@ -20,7 +20,6 @@ use Magento\Framework\App\Config\ScopeConfigInterface;
 use BluePrint3D\EtsyIntegration\Service\ProductSync;
 use BluePrint3D\EtsyIntegration\Service\QueueManager;
 use Magento\Framework\Message\ManagerInterface;
-use Magento\Catalog\Model\ResourceModel\Product\Action as ProductAction;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -50,11 +49,6 @@ class ProductSaveObserver implements ObserverInterface
     protected $messageManager;
 
     /**
-     * @var ProductAction
-     */
-    protected $productAction;
-
-    /**
      * @var LoggerInterface
      */
     protected $logger;
@@ -66,7 +60,6 @@ class ProductSaveObserver implements ObserverInterface
      * @param ProductSync $productSync
      * @param QueueManager $queueManager
      * @param ManagerInterface $messageManager
-     * @param ProductAction $productAction
      * @param LoggerInterface $logger
      */
     public function __construct(
@@ -74,14 +67,12 @@ class ProductSaveObserver implements ObserverInterface
         ProductSync $productSync,
         QueueManager $queueManager,
         ManagerInterface $messageManager,
-        ProductAction $productAction,
         LoggerInterface $logger
     ) {
         $this->scopeConfig = $scopeConfig;
         $this->productSync = $productSync;
         $this->queueManager = $queueManager;
         $this->messageManager = $messageManager;
-        $this->productAction = $productAction;
         $this->logger = $logger;
     }
 
@@ -98,15 +89,8 @@ class ProductSaveObserver implements ObserverInterface
         // 1. Grab the incoming values from the save action
         $syncEnabled = (bool)$product->getData('etsy_sync_enabled');
 
-        if (!$syncEnabled) {
-            // Force auto-renew off in memory
-            $product->setData('etsy_auto_renew', 0);
-
-            // Surgically update the database without triggering another full product save
-            if ($product->getId()) {
-                $this->productAction->updateAttributes([$product->getId()], ['etsy_auto_renew' => 0], 0);
-            }
-        }
+        // Auto-renew is cleared before the save when sync is off (ResetAutoRenewObserver), so the
+        // product is written once - a second write here broke Magento's fixture generator.
 
         // 2. Stop execution if sync is disabled
         if (!$syncEnabled) {
