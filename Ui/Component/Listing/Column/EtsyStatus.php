@@ -21,6 +21,8 @@ use Magento\Framework\App\ResourceConnection;
 use Magento\Eav\Model\Config as EavConfig;
 use Magento\Catalog\Model\Product;
 use Magento\Framework\Escaper;
+use Magento\Framework\EntityManager\MetadataPool;
+use Magento\Catalog\Api\Data\ProductInterface;
 
 /**
  * Class EtsyStatus
@@ -44,6 +46,11 @@ class EtsyStatus extends Column
     protected $escaper;
 
     /**
+     * @var MetadataPool
+     */
+    private $metadataPool;
+
+    /**
      * EtsyStatus constructor.
      *
      * @param ContextInterface $context
@@ -51,6 +58,7 @@ class EtsyStatus extends Column
      * @param ResourceConnection $resourceConnection
      * @param EavConfig $eavConfig
      * @param Escaper $escaper
+     * @param MetadataPool $metadataPool
      * @param array $components
      * @param array $data
      */
@@ -60,12 +68,14 @@ class EtsyStatus extends Column
         ResourceConnection $resourceConnection,
         EavConfig $eavConfig,
         Escaper $escaper,
+        MetadataPool $metadataPool,
         array $components = [],
         array $data = []
     ) {
         $this->resourceConnection = $resourceConnection;
         $this->eavConfig = $eavConfig;
         $this->escaper = $escaper;
+        $this->metadataPool = $metadataPool;
         parent::__construct($context, $uiComponentFactory, $components, $data);
     }
 
@@ -105,13 +115,22 @@ class EtsyStatus extends Column
             $attribute = $this->eavConfig->getAttribute(Product::ENTITY, 'etsy_listing_id');
             $attrTable = $attribute->getBackend()->getTable();
 
+            // Attribute values are keyed by the link field: entity_id on Magento Open Source,
+            // row_id on Adobe Commerce (content staging), so join through the entity table.
+            $linkField = $this->metadataPool->getMetadata(ProductInterface::class)->getLinkField();
             $listingSelect = $connection->select()
-                ->from($attrTable, ['entity_id', 'value'])
-                ->where('attribute_id = ?', $attribute->getId())
-                ->where('entity_id IN (?)', $productIds)
-                ->where('value IS NOT NULL')
-                ->where('value != ?', '')
-                ->order('store_id ASC');
+                ->from(['v' => $attrTable], [])
+                ->join(
+                    ['e' => $connection->getTableName('catalog_product_entity')],
+                    'e.' . $linkField . ' = v.' . $linkField,
+                    ['entity_id']
+                )
+                ->columns(['value' => 'v.value'])
+                ->where('v.attribute_id = ?', $attribute->getId())
+                ->where('e.entity_id IN (?)', $productIds)
+                ->where('v.value IS NOT NULL')
+                ->where('v.value != ?', '')
+                ->order('v.store_id ASC');
 
             $listingIds = $connection->fetchPairs($listingSelect);
 
