@@ -17,7 +17,9 @@ namespace BluePrint3D\EtsyIntegration\Model\Sync;
 use Magento\Catalog\Model\Product;
 use Magento\CatalogInventory\Api\StockRegistryInterface;
 use Magento\Catalog\Api\CategoryRepositoryInterface;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Exception\LocalizedException;
+use Magento\Store\Model\ScopeInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -42,20 +44,28 @@ class PayloadBuilder
     protected $logger;
 
     /**
+     * @var ScopeConfigInterface
+     */
+    protected $scopeConfig;
+
+    /**
      * PayloadBuilder constructor.
      *
      * @param StockRegistryInterface $stockRegistry
      * @param CategoryRepositoryInterface $categoryRepository
      * @param LoggerInterface $logger
+     * @param ScopeConfigInterface $scopeConfig
      */
     public function __construct(
         StockRegistryInterface $stockRegistry,
         CategoryRepositoryInterface $categoryRepository,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        ScopeConfigInterface $scopeConfig
     ) {
         $this->stockRegistry = $stockRegistry;
         $this->categoryRepository = $categoryRepository;
         $this->logger = $logger;
+        $this->scopeConfig = $scopeConfig;
     }
 
     /**
@@ -84,10 +94,10 @@ class PayloadBuilder
             'title'               => substr((string)$product->getName(), 0, 140),
             'description'         => $this->formatDescription($product),
             'price'               => $this->getCalculatedPrice($product),
-            'who_made'            => $product->getData('etsy_who_made'),
-            'when_made'           => $product->getData('etsy_when_made'),
+            'who_made'            => $this->listingValue($product, 'etsy_who_made', 'who_made', 'i_did'),
+            'when_made'           => $this->listingValue($product, 'etsy_when_made', 'when_made', 'made_to_order'),
             'taxonomy_id'         => (int)$taxonomyId,
-            'is_supply'           => (bool)$product->getData('etsy_is_supply'),
+            'is_supply'           => $this->isSupply($product),
             'should_auto_renew'   => (bool)$product->getData('etsy_auto_renew'),
             'tags'                => $this->getEtsyTags($product),
             'shipping_profile_id' => $shippingProfileId,
@@ -220,5 +230,52 @@ class PayloadBuilder
             }
         }
         return null;
+    }
+
+    /**
+     * Product's own value, else the store's Global Listing Default, else a safe fallback
+     *
+     * The product attributes are optional (so products created through the API, imports or other
+     * extensions save normally); a product without its own answer uses the store default.
+     *
+     * @param Product $product
+     * @param string $attribute
+     * @param string $configField
+     * @param string $fallback
+     * @return string
+     */
+    private function listingValue(Product $product, string $attribute, string $configField, string $fallback): string
+    {
+        $value = (string)$product->getData($attribute);
+        if ($value !== '') {
+            return $value;
+        }
+        $default = (string)$this->scopeConfig->getValue(
+            'etsy_integration/global_defaults/' . $configField,
+            ScopeInterface::SCOPE_STORE,
+            $product->getStoreId()
+        );
+
+        return $default !== '' ? $default : $fallback;
+    }
+
+    /**
+     * Supply flag: the product's own value when set, else the store's Global Listing Default
+     *
+     * @param Product $product
+     * @return bool
+     */
+    private function isSupply(Product $product): bool
+    {
+        $value = $product->getData('etsy_is_supply');
+        if ($value !== null && $value !== '') {
+            return (bool)$value;
+        }
+
+        return (string)$this->scopeConfig->getValue(
+            'etsy_integration/global_defaults/is_supply',
+            ScopeInterface::SCOPE_STORE,
+            $product->getStoreId()
+        ) === 'true';
     }
 }

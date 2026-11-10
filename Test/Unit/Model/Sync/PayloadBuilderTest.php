@@ -18,6 +18,7 @@ use BluePrint3D\EtsyIntegration\Model\Sync\PayloadBuilder;
 use Magento\Catalog\Model\Product;
 use Magento\CatalogInventory\Api\StockRegistryInterface;
 use Magento\Catalog\Api\CategoryRepositoryInterface;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Psr\Log\LoggerInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -36,7 +37,8 @@ class PayloadBuilderTest extends TestCase
         $this->builder = new PayloadBuilder(
             $this->createMock(StockRegistryInterface::class),
             $this->createMock(CategoryRepositoryInterface::class),
-            $this->createMock(LoggerInterface::class)
+            $this->createMock(LoggerInterface::class),
+            $this->createMock(ScopeConfigInterface::class)
         );
     }
 
@@ -210,5 +212,75 @@ class PayloadBuilderTest extends TestCase
         $result = $this->invokePrivate('formatDescription', [$product]);
 
         $this->assertSame("\xE2\x80\xA2 One\n\xE2\x80\xA2 Two\n\xE2\x80\xA2 Three", $result);
+    }
+
+    /**
+     * Call a private PayloadBuilder method with a store config that returns $config.
+     *
+     * @param string $method
+     * @param array $args
+     * @param array $config path => value
+     * @return mixed
+     */
+    private function callWithConfig(string $method, array $args, array $config)
+    {
+        $scopeConfig = $this->createMock(ScopeConfigInterface::class);
+        $scopeConfig->method('getValue')->willReturnCallback(static fn($path) => $config[$path] ?? null);
+        $builder = new PayloadBuilder(
+            $this->createMock(StockRegistryInterface::class),
+            $this->createMock(CategoryRepositoryInterface::class),
+            $this->createMock(LoggerInterface::class),
+            $scopeConfig
+        );
+
+        $args[0]->setData('store_id', 0);
+
+        return (new \ReflectionMethod($builder, $method))->invokeArgs($builder, $args);
+    }
+
+    public function testListingValueUsesTheProductsOwnAnswerFirst(): void
+    {
+        $product = $this->productWithDescription('');
+        $product->setData('etsy_who_made', 'collective');
+
+        $this->assertSame('collective', $this->callWithConfig(
+            'listingValue',
+            [$product, 'etsy_who_made', 'who_made', 'i_did'],
+            ['etsy_integration/global_defaults/who_made' => 'someone_else']
+        ));
+    }
+
+    public function testListingValueFallsBackToTheStoreDefault(): void
+    {
+        $this->assertSame('someone_else', $this->callWithConfig(
+            'listingValue',
+            [$this->productWithDescription(''), 'etsy_who_made', 'who_made', 'i_did'],
+            ['etsy_integration/global_defaults/who_made' => 'someone_else']
+        ));
+    }
+
+    public function testListingValueHasASafeFallbackWithNoDefault(): void
+    {
+        $this->assertSame('made_to_order', $this->callWithConfig(
+            'listingValue',
+            [$this->productWithDescription(''), 'etsy_when_made', 'when_made', 'made_to_order'],
+            []
+        ));
+    }
+
+    public function testSupplyFallsBackToTheStoreDefault(): void
+    {
+        $this->assertTrue($this->callWithConfig(
+            'isSupply',
+            [$this->productWithDescription('')],
+            ['etsy_integration/global_defaults/is_supply' => 'true']
+        ));
+        $product = $this->productWithDescription('');
+        $product->setData('etsy_is_supply', 0);
+        $this->assertFalse($this->callWithConfig(
+            'isSupply',
+            [$product],
+            ['etsy_integration/global_defaults/is_supply' => 'true']
+        ));
     }
 }
