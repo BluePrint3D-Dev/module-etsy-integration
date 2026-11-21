@@ -1,76 +1,60 @@
-<h1>BluePrint3D - Etsy Integration for Magento 2 🛍️</h1>
+# BluePrint3D – Etsy Integration for Magento 2 🛍️
 
-<p>
-    <a href="#"><img src="https://img.shields.io/badge/Magento-2.4.x-orange.svg" alt="Magento Version" /></a>
-    <a href="#"><img src="https://img.shields.io/badge/PHP-8.1--8.5-blue.svg" alt="PHP Version" /></a>
-    <a href="#"><img src="https://img.shields.io/badge/Etsy%20API-v3%20Ready-brightgreen.svg" alt="Etsy API v3" /></a>
-    <a href="#"><img src="https://img.shields.io/badge/License-Commercial_EULA-lightgrey.svg" alt="License" /></a>
-</p>
+![Magento 2.4.x](https://img.shields.io/badge/Magento-2.4.x-orange.svg)
+![PHP 8.1–8.5](https://img.shields.io/badge/PHP-8.1--8.5-blue.svg)
+![Etsy API v3](https://img.shields.io/badge/Etsy%20API-v3-brightgreen.svg)
+![Licence](https://img.shields.io/badge/Licence-Commercial_EULA-lightgrey.svg)
 
-<p>An enterprise-grade, direct-database Etsy v3 connector for Magento 2. Sync products, gallery images, smart tags, and dynamic personalizations to Etsy asynchronously in the background—without breaking cron schedules, causing Admin timeouts, or paying expensive monthly SaaS middleware fees.</p>
+A direct Etsy API v3 connector for Magento 2. Syncs products, gallery images, tags and personalisation questions to Etsy from a background queue, without slowing down product saves or paying for monthly SaaS middleware.
 
-<hr />
+---
 
-<h2>🛑 The Problem</h2>
-<p>Most Magento 2 Etsy connectors rely on slow, synchronous HTTP requests during product save, causing Admin edit pages to crash or lock up. Worse still, existing tools treat custom options as broken variants, forcing merchants to build complex configurable products just to collect simple buyer text inputs or engraving choices.</p>
+## 🛑 The Problem
+Most Magento Etsy connectors make slow, synchronous API calls during product save, so admin edit pages hang or time out. Many also treat custom options as broken variants, forcing you to build configurable products just to collect buyer text or engraving choices.
 
-<h2>🛠️ The Solution</h2>
-<p>The <strong>BluePrint3D Etsy Integration</strong> handles your catalogue sync using a lightweight, direct-database background queue worker. Built natively for the latest <strong>Etsy API v3</strong>, it automatically converts both native Magento Custom Options and <a href="https://github.com/BluePrint3D-Dev/module-shared-product-options">BluePrint3D Shared Options</a> into native Etsy Personalizations and custom dropdowns without risking catalogue corruption or inventory miscounts.</p>
+## 🛠️ The Solution
+A lightweight database queue and cron worker do the Etsy work in the background. Built for **Etsy API v3**, it turns native Magento custom options and [BluePrint3D Shared Product Options](https://github.com/BluePrint3D-Dev/module-shared-product-options) into Etsy personalisation questions and dropdowns, without risking catalogue corruption or stock miscounts.
 
-<h2>✨ Features</h2>
-<ul>
-    <li><strong>Asynchronous Background Queue:</strong> Offloads heavy API lifting to a dedicated DB queue table (<code>blueprint3d_etsy_queue</code>) and cron worker. Product saves in Admin remain instant.</li>
-    <li><strong>Native Etsy Personalization Sync:</strong> Leverages Etsy's multi-question personalization API to automatically push text fields, text areas, and non-inventory dropdowns straight into Etsy's custom options box.</li>
-    <li><strong>BluePrint3D Shared Options Ready:</strong> Zero-config compatibility with <code>BluePrint3D_SharedProductOptions</code>, bypassing Admin/CLI area restrictions to read shared groups seamlessly.</li>
-    <li><strong>Smart Tag Generator:</strong> Extracts meta keywords, cleans forbidden characters, caps length at 20 characters, and automatically falls back to product titles if meta tags are missing.</li>
-    <li><strong>Automated Gallery Sync:</strong> Sorts and uploads up to 20 high-resolution product gallery images according to native Magento position rankings.</li>
-    <li><strong>Configurable Safeguards:</strong> Built-in <em>Strict Mode</em> (abort sync and alert admin) and <em>Lenient Mode</em> (strip unsupported options and log warnings) to protect listings from API rejection.</li>
-</ul>
+## ✨ Features
+- **Background queue:** API work goes to a queue table (`blueprint3d_etsy_queue`) and a cron worker, so admin saves stay instant.
+- **Etsy personalisation sync:** text fields, text areas and non-stock dropdowns go into Etsy's multi-question personalisation box.
+- **Shared Product Options ready:** works with `BluePrint3D_SharedProductOptions` with no extra setup.
+- **Smart tags:** built from meta keywords, cleaned of forbidden characters, capped at 20 characters, falling back to the product title.
+- **Gallery sync:** up to 20 images, in Magento's gallery order.
+- **Safeguards:** *Strict* mode stops the sync and alerts you; *Lenient* mode drops unsupported options and logs a warning.
 
-<hr />
+## 🚀 Free vs Pro
+This free edition syncs up to **20 products**. [Etsy Integration Pro](https://www.blueprint3d.dev/modules/etsy-integration-pro) adds unlimited products, bulk actions, configurable variations, price markup rules and image auto-crop.
 
-<h2>🚀 Free vs. Pro</h2>
-<p>This free edition syncs up to <strong>20 products</strong>. For unlimited products, bulk operations, configurable variation support, and more, see <a href="https://www.blueprint3d.dev/modules/etsy-integration-pro"><strong>Etsy Integration Pro</strong></a>.</p>
+---
 
-<hr />
+## 📦 Installation
 
-<h2>📦 Installation</h2>
+```bash
+composer require blueprint3d/module-etsy-integration
+bin/magento module:enable BluePrint3D_EtsyIntegration
+bin/magento setup:upgrade
+bin/magento setup:di:compile
+bin/magento cache:flush
+```
 
-<p><strong>1. Install via Composer</strong></p>
-<pre><code>composer require blueprint3d/module-etsy-integration</code></pre>
+## ⚙️ Configuration
+1. Go to **Stores > Configuration > BluePrint3D > Etsy Integration**.
+2. Enter your **Etsy OAuth API credentials** and **Shop ID**.
+3. Choose how unsupported options are handled (*Strict* or *Lenient*).
+4. Map Magento categories to **Etsy Taxonomy IDs** under **Catalog > Categories**.
+5. Save an assigned product to queue it for sync.
 
-<p><strong>2. Enable the module</strong></p>
-<pre><code>php bin/magento module:enable BluePrint3D_EtsyIntegration</code></pre>
+---
 
-<p><strong>3. Run the database upgrade</strong></p>
-<pre><code>php bin/magento setup:upgrade</code></pre>
+## 📖 Documentation
+Full setup guide: [`Etsy Integration Setup Guide.pdf`](Etsy%20Integration%20Setup%20Guide.pdf).
 
-<p><strong>4. Compile and flush cache</strong></p>
-<pre><code>php bin/magento setup:di:compile
-php bin/magento cache:flush</code></pre>
+## 📜 Licence & Support
+**Copyright © 2026 BluePrint3D Ltd. All rights reserved.**
 
-<hr />
+The free edition is licensed under the BluePrint3D Commercial EULA: free to use, but resale, redistribution, sublicensing or public hosting of this source code is prohibited. Full terms in [`LICENSE.txt`](LICENSE.txt).
 
-<h2>⚙️ Quick Configuration</h2>
-<ol>
-    <li>Navigate to <strong>Stores &gt; Configuration &gt; BluePrint3D &gt; Etsy Settings</strong> in your Magento Admin.</li>
-    <li>Enter your <strong>Etsy OAuth API Credentials</strong> and <strong>Shop ID</strong>.</li>
-    <li>Configure your <strong>Unsupported Options Handling</strong> (<em>Strict Mode</em> or <em>Lenient Mode</em>).</li>
-    <li>Map your Magento Categories to <strong>Etsy Taxonomy IDs</strong> under <strong>Catalog &gt; Categories</strong>.</li>
-    <li>Save any assigned product to queue it for immediate background sync!</li>
-</ol>
-
-<hr />
-
-<h2>📜 License &amp; Support</h2>
-<p><strong>Copyright &copy; 2026 BluePrint3D Ltd. All rights reserved.</strong></p>
-
-<p>This software is licensed under a Commercial Proprietary End User License Agreement (EULA). Resale, redistribution, sublicensing, or public hosting of this source code is strictly prohibited.</p>
-
-<p>For licensing updates, technical documentation, or dedicated integration support:</p>
-
-<p>
-    <strong>Website:</strong> <a href="https://www.blueprint3d.dev">www.blueprint3d.dev</a><br />
-    <strong>Company:</strong> BluePrint3D Ltd (Company Registration Number: 13473806)<br />
-    <strong>Support Email:</strong> <a href="mailto:support@blueprint3d.dev">support@blueprint3d.dev</a>
-</p>
+- **Website:** [blueprint3d.dev](https://www.blueprint3d.dev/modules/etsy-integration)
+- **Support:** [support@blueprint3d.dev](mailto:support@blueprint3d.dev)
+- **Company:** BluePrint3D Ltd, Company No. 13473806
