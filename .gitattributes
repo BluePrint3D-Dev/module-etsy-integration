@@ -1,0 +1,2 @@
+# Setup guides are documentation, not code: keep them out of the language stats.
+*.html linguist-documentation
